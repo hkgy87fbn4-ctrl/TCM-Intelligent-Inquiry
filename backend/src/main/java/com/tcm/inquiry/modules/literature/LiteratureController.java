@@ -1,26 +1,44 @@
 package com.tcm.inquiry.modules.literature;
 
+import java.io.IOException;
 import java.util.List;
 
-import com.tcm.inquiry.common.ApiResult;
-import com.tcm.inquiry.common.R;
-
-import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.tcm.inquiry.common.ApiResult;
+import com.tcm.inquiry.common.R;
+import com.tcm.inquiry.modules.literature.dto.LiteratureFileView;
+import com.tcm.inquiry.modules.literature.dto.LiteratureQueryRequest;
+import com.tcm.inquiry.modules.literature.dto.LiteratureQueryResponse;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/literature")
 public class LiteratureController {
 
-    private final LiteratureService literatureService;
+    private final LiteratureIngestionService literatureIngestionService;
+    private final LiteratureRagService literatureRagService;
+    private final LiteratureManageService literatureManageService;
 
-    public LiteratureController(LiteratureService literatureService) {
-        this.literatureService = literatureService;
+    public LiteratureController(
+            LiteratureIngestionService literatureIngestionService,
+            LiteratureRagService literatureRagService,
+            LiteratureManageService literatureManageService) {
+        this.literatureIngestionService = literatureIngestionService;
+        this.literatureRagService = literatureRagService;
+        this.literatureManageService = literatureManageService;
     }
 
     @GetMapping("/health")
@@ -29,13 +47,42 @@ public class LiteratureController {
     }
 
     @GetMapping("/uploads")
-    public ResponseEntity<ApiResult<List<LiteratureUpload>>> listUploads() {
-        return ResponseEntity.ok(R.ok(literatureService.getStatus()));
+    public ResponseEntity<ApiResult<List<LiteratureFileView>>> listUploads() {
+        return ResponseEntity.ok(R.ok(literatureManageService.listAll()));
     }
 
-    @PostMapping("/uploads")
-    public ResponseEntity<ApiResult<LiteratureRegisterResponse>> registerUpload(
-            @Valid @RequestBody LiteratureRegisterRequest request) {
-        return ResponseEntity.ok(R.ok(literatureService.registerUpload(request.filename())));
+    @GetMapping("/collections/{collectionId}/files")
+    public ResponseEntity<ApiResult<List<LiteratureFileView>>> listCollectionFiles(
+            @PathVariable("collectionId") String collectionId) {
+        return ResponseEntity.ok(R.ok(literatureManageService.listCollection(collectionId)));
+    }
+
+    @PostMapping(value = "/uploads", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResult<LiteratureFileView>> upload(
+            @RequestPart("file") MultipartFile file,
+            @RequestParam(value = "collectionId", required = false) String collectionId,
+            @RequestParam(value = "chunkSize", required = false) Integer chunkSize)
+            throws IOException {
+        return ResponseEntity.ok(R.ok(literatureIngestionService.ingest(collectionId, file, chunkSize)));
+    }
+
+    @PostMapping("/collections/{collectionId}/query")
+    public ResponseEntity<ApiResult<LiteratureQueryResponse>> query(
+            @PathVariable("collectionId") String collectionId,
+            @Valid @RequestBody LiteratureQueryRequest body) {
+        return ResponseEntity.ok(R.ok(literatureRagService.query(collectionId, body)));
+    }
+
+    @DeleteMapping("/collections/{collectionId}")
+    public ResponseEntity<ApiResult<Void>> deleteCollection(@PathVariable("collectionId") String collectionId) {
+        literatureManageService.deleteCollection(collectionId);
+        return ResponseEntity.ok(R.ok(null));
+    }
+
+    @DeleteMapping("/collections/{collectionId}/documents/{fileUuid}")
+    public ResponseEntity<ApiResult<Void>> deleteDocument(
+            @PathVariable("collectionId") String collectionId, @PathVariable String fileUuid) {
+        literatureManageService.deleteFile(collectionId, fileUuid);
+        return ResponseEntity.ok(R.ok(null));
     }
 }

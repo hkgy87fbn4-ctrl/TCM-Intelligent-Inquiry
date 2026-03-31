@@ -26,6 +26,19 @@ public class LiteratureUpload {
     @Column(nullable = false, length = 64)
     private String tempCollectionId;
 
+    /** 单文件在集合内唯一；仅登记未入库的旧数据可能为空 */
+    @Column(name = "file_uuid", length = 64)
+    private String fileUuid;
+
+    @Column(name = "stored_relative_path")
+    private String storedRelativePath;
+
+    @Column(name = "size_bytes")
+    private Long sizeBytes;
+
+    @Column(name = "content_type")
+    private String contentType;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private LiteratureUploadStatus status;
@@ -73,6 +86,38 @@ public class LiteratureUpload {
 
     public void setStatus(LiteratureUploadStatus status) {
         this.status = status;
+    }
+
+    public String getFileUuid() {
+        return fileUuid;
+    }
+
+    public void setFileUuid(String fileUuid) {
+        this.fileUuid = fileUuid;
+    }
+
+    public String getStoredRelativePath() {
+        return storedRelativePath;
+    }
+
+    public void setStoredRelativePath(String storedRelativePath) {
+        this.storedRelativePath = storedRelativePath;
+    }
+
+    public Long getSizeBytes() {
+        return sizeBytes;
+    }
+
+    public void setSizeBytes(Long sizeBytes) {
+        this.sizeBytes = sizeBytes;
+    }
+
+    public String getContentType() {
+        return contentType;
+    }
+
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
     }
 
     public Instant getCreatedAt() {

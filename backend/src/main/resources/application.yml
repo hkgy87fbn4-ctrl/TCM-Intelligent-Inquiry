@@ -48,3 +48,5 @@ tcm:
     default-top-k: 4
     default-similarity-threshold: 0.0
     storage-dir: data/kb-files
+  literature:
+    storage-dir: data/literature-files
