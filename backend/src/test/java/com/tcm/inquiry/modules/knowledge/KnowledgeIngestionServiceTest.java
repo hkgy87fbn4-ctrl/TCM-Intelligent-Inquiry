@@ -16,6 +16,13 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.tcm.inquiry.modules.knowledge.ai.VectorStoreFilterDeletion;
+import com.tcm.inquiry.modules.knowledge.config.KnowledgeProperties;
+import com.tcm.inquiry.modules.knowledge.entity.KnowledgeBase;
+import com.tcm.inquiry.modules.knowledge.repository.KnowledgeBaseRepository;
+import com.tcm.inquiry.modules.knowledge.repository.KnowledgeFileRepository;
+import com.tcm.inquiry.modules.knowledge.service.KnowledgeIngestionService;
+
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class KnowledgeIngestionServiceTest {

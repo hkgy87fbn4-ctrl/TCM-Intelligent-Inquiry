@@ -17,6 +17,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.tcm.inquiry.config.TcmApiPropertiesConfig;
+import com.tcm.inquiry.modules.agent.service.AgentAppConfigService;
+import com.tcm.inquiry.modules.agent.service.AgentService;
 
 @WebMvcTest(AgentController.class)
 @Import(TcmApiPropertiesConfig.class)

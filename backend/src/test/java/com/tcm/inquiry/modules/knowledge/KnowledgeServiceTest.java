@@ -15,6 +15,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.tcm.inquiry.modules.knowledge.ai.VectorBackend;
+import com.tcm.inquiry.modules.knowledge.entity.KnowledgeBase;
+import com.tcm.inquiry.modules.knowledge.repository.KnowledgeBaseRepository;
+import com.tcm.inquiry.modules.knowledge.service.KnowledgeService;
+
 @ExtendWith(MockitoExtension.class)
 class KnowledgeServiceTest {
 

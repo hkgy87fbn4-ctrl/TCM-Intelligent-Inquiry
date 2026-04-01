@@ -12,8 +12,10 @@ import org.springframework.context.annotation.Import;
 
 import com.tcm.inquiry.modules.consultation.entity.ChatMessage;
 import com.tcm.inquiry.modules.consultation.entity.ChatSession;
+import com.tcm.inquiry.modules.consultation.config.ConsultationJpaConfig;
 import com.tcm.inquiry.modules.consultation.repository.ChatMessageRepository;
 import com.tcm.inquiry.modules.consultation.repository.ChatSessionRepository;
+import com.tcm.inquiry.modules.consultation.service.ConsultationMessageStore;
 
 @DataJpaTest(
         properties = {

@@ -1,4 +1,4 @@
-package com.tcm.inquiry.modules.literature;
+package com.tcm.inquiry.modules.literature.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

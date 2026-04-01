@@ -17,11 +17,14 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import com.tcm.inquiry.common.ApiResult;
-import com.tcm.inquiry.common.R;
-import com.tcm.inquiry.modules.literature.dto.LiteratureFileView;
-import com.tcm.inquiry.modules.literature.dto.LiteratureQueryRequest;
-import com.tcm.inquiry.modules.literature.dto.LiteratureQueryResponse;
+import com.tcm.inquiry.common.api.ApiResult;
+import com.tcm.inquiry.common.api.R;
+import com.tcm.inquiry.modules.literature.ai.LiteratureRagService;
+import com.tcm.inquiry.modules.literature.dto.req.LiteratureQueryRequest;
+import com.tcm.inquiry.modules.literature.dto.resp.LiteratureFileView;
+import com.tcm.inquiry.modules.literature.dto.resp.LiteratureQueryResponse;
+import com.tcm.inquiry.modules.literature.service.LiteratureIngestionService;
+import com.tcm.inquiry.modules.literature.service.LiteratureManageService;
 
 import jakarta.validation.Valid;
 

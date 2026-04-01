@@ -14,10 +14,12 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.tcm.inquiry.common.ApiResult;
-import com.tcm.inquiry.common.R;
+import com.tcm.inquiry.common.api.ApiResult;
+import com.tcm.inquiry.common.api.R;
 import com.tcm.inquiry.modules.agent.dto.AgentConfigUpdateRequest;
 import com.tcm.inquiry.modules.agent.dto.AgentConfigView;
+import com.tcm.inquiry.modules.agent.service.AgentAppConfigService;
+import com.tcm.inquiry.modules.agent.service.AgentService;
 
 import jakarta.validation.Valid;
 

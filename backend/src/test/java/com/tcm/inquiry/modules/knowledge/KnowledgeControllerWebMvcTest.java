@@ -19,8 +19,13 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.tcm.inquiry.config.TcmApiPropertiesConfig;
-import com.tcm.inquiry.modules.knowledge.dto.KnowledgeFileView;
-import com.tcm.inquiry.modules.knowledge.dto.KnowledgeQueryResponse;
+import com.tcm.inquiry.modules.knowledge.ai.KnowledgeRagService;
+import com.tcm.inquiry.modules.knowledge.dto.resp.KnowledgeFileView;
+import com.tcm.inquiry.modules.knowledge.dto.resp.KnowledgeQueryResponse;
+import com.tcm.inquiry.modules.knowledge.entity.KnowledgeBase;
+import com.tcm.inquiry.modules.knowledge.service.KnowledgeFileService;
+import com.tcm.inquiry.modules.knowledge.service.KnowledgeIngestionService;
+import com.tcm.inquiry.modules.knowledge.service.KnowledgeService;
 
 @WebMvcTest(KnowledgeController.class)
 @Import(TcmApiPropertiesConfig.class)

@@ -17,11 +17,17 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import com.tcm.inquiry.common.ApiResult;
-import com.tcm.inquiry.common.R;
-import com.tcm.inquiry.modules.knowledge.dto.KnowledgeFileView;
-import com.tcm.inquiry.modules.knowledge.dto.KnowledgeQueryRequest;
-import com.tcm.inquiry.modules.knowledge.dto.KnowledgeQueryResponse;
+import com.tcm.inquiry.common.api.ApiResult;
+import com.tcm.inquiry.common.api.R;
+import com.tcm.inquiry.modules.knowledge.ai.KnowledgeRagService;
+import com.tcm.inquiry.modules.knowledge.dto.req.CreateKnowledgeBaseRequest;
+import com.tcm.inquiry.modules.knowledge.dto.req.KnowledgeQueryRequest;
+import com.tcm.inquiry.modules.knowledge.dto.resp.KnowledgeFileView;
+import com.tcm.inquiry.modules.knowledge.dto.resp.KnowledgeQueryResponse;
+import com.tcm.inquiry.modules.knowledge.entity.KnowledgeBase;
+import com.tcm.inquiry.modules.knowledge.service.KnowledgeFileService;
+import com.tcm.inquiry.modules.knowledge.service.KnowledgeIngestionService;
+import com.tcm.inquiry.modules.knowledge.service.KnowledgeService;
 
 import jakarta.validation.Valid;
 

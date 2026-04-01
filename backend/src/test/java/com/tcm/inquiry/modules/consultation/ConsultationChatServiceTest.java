@@ -11,8 +11,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.tcm.inquiry.config.TcmApiProperties;
 import com.tcm.inquiry.modules.consultation.dto.ConsultationChatRequest;
-import com.tcm.inquiry.modules.knowledge.KnowledgeRagService;
-import com.tcm.inquiry.modules.literature.LiteratureRagService;
+import com.tcm.inquiry.modules.consultation.service.ConsultationChatService;
+import com.tcm.inquiry.modules.consultation.service.ConsultationMessageStore;
+import com.tcm.inquiry.modules.knowledge.ai.KnowledgeRagService;
+import com.tcm.inquiry.modules.literature.ai.LiteratureRagService;
 import com.tcm.inquiry.modules.consultation.repository.ChatMessageRepository;
 import com.tcm.inquiry.modules.consultation.repository.ChatSessionRepository;
 

@@ -15,6 +15,8 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 
+import com.tcm.inquiry.modules.knowledge.ai.VectorStoreFilterDeletion;
+
 @ExtendWith(MockitoExtension.class)
 class VectorStoreFilterDeletionTest {
 

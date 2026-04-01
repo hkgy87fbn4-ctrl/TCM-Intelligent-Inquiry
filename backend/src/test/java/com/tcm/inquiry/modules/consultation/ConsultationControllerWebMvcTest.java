@@ -17,6 +17,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.tcm.inquiry.config.TcmApiPropertiesConfig;
 
 import com.tcm.inquiry.modules.consultation.dto.ChatSessionResponse;
+import com.tcm.inquiry.modules.consultation.service.ConsultationChatService;
+import com.tcm.inquiry.modules.consultation.service.ConsultationService;
 
 @WebMvcTest(ConsultationController.class)
 @Import(TcmApiPropertiesConfig.class)

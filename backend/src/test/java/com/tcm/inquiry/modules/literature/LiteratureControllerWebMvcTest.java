@@ -20,8 +20,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.tcm.inquiry.config.TcmApiPropertiesConfig;
-import com.tcm.inquiry.modules.literature.dto.LiteratureFileView;
-import com.tcm.inquiry.modules.literature.dto.LiteratureQueryResponse;
+import com.tcm.inquiry.modules.literature.ai.LiteratureRagService;
+import com.tcm.inquiry.modules.literature.dto.resp.LiteratureFileView;
+import com.tcm.inquiry.modules.literature.dto.resp.LiteratureQueryResponse;
+import com.tcm.inquiry.modules.literature.entity.LiteratureUploadStatus;
+import com.tcm.inquiry.modules.literature.service.LiteratureIngestionService;
+import com.tcm.inquiry.modules.literature.service.LiteratureManageService;
 
 @WebMvcTest(LiteratureController.class)
 @Import(TcmApiPropertiesConfig.class)
