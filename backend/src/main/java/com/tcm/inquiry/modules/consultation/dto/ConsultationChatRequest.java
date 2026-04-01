@@ -32,6 +32,17 @@ public class ConsultationChatRequest {
     /** 覆盖知识库相似度阈值；仅当 knowledgeBaseId 非空时有效。 */
     private Double ragSimilarityThreshold;
 
+    /**
+     * 可选：检索该临时文献库中与主诉相关的摘录并注入模型输入（与 {@link #knowledgeBaseId} 互斥）。
+     */
+    private String literatureCollectionId;
+
+    /** 文献检索 topK；仅当 literatureCollectionId 非空时有效。 */
+    private Integer literatureRagTopK;
+
+    /** 文献相似度阈值；仅当 literatureCollectionId 非空时有效。 */
+    private Double literatureSimilarityThreshold;
+
     public Long getSessionId() {
         return sessionId;
     }
@@ -86,5 +97,29 @@ public class ConsultationChatRequest {
 
     public void setRagSimilarityThreshold(Double ragSimilarityThreshold) {
         this.ragSimilarityThreshold = ragSimilarityThreshold;
+    }
+
+    public String getLiteratureCollectionId() {
+        return literatureCollectionId;
+    }
+
+    public void setLiteratureCollectionId(String literatureCollectionId) {
+        this.literatureCollectionId = literatureCollectionId;
+    }
+
+    public Integer getLiteratureRagTopK() {
+        return literatureRagTopK;
+    }
+
+    public void setLiteratureRagTopK(Integer literatureRagTopK) {
+        this.literatureRagTopK = literatureRagTopK;
+    }
+
+    public Double getLiteratureSimilarityThreshold() {
+        return literatureSimilarityThreshold;
+    }
+
+    public void setLiteratureSimilarityThreshold(Double literatureSimilarityThreshold) {
+        this.literatureSimilarityThreshold = literatureSimilarityThreshold;
     }
 }

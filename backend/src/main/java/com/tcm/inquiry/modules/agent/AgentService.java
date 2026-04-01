@@ -7,7 +7,9 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.content.Media;
+import org.springframework.ai.ollama.api.OllamaOptions;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MimeTypeUtils;
 import org.springframework.util.StringUtils;
@@ -23,14 +25,20 @@ public class AgentService {
     private final ChatModel textChatModel;
     private final ChatModel visionChatModel;
     private final KnowledgeRagService knowledgeRagService;
+    private final AgentAppConfigService agentAppConfigService;
+
+    @Value("${tcm.ollama.vision-model:qwen3-vl:2b}")
+    private String defaultVisionModelName;
 
     public AgentService(
             @Qualifier("ollamaChatModel") ChatModel textChatModel,
             @Qualifier(AiConfig.VISION_CHAT_MODEL) ChatModel visionChatModel,
-            KnowledgeRagService knowledgeRagService) {
+            KnowledgeRagService knowledgeRagService,
+            AgentAppConfigService agentAppConfigService) {
         this.textChatModel = textChatModel;
         this.visionChatModel = visionChatModel;
         this.knowledgeRagService = knowledgeRagService;
+        this.agentAppConfigService = agentAppConfigService;
     }
 
     public AgentRunResponse runJson(AgentRunRequest req) {
@@ -58,6 +66,20 @@ public class AgentService {
             Integer ragTopK,
             Double ragSimilarityThreshold,
             MultipartFile image) {
+
+        var appCfg = agentAppConfigService.getOrCreateEntity();
+        String textSystem =
+                StringUtils.hasText(appCfg.getTextSystemPrompt())
+                        ? appCfg.getTextSystemPrompt()
+                        : AgentPrompts.AGENT_SYSTEM;
+        String visionSystem =
+                StringUtils.hasText(appCfg.getVisionSystemPrompt())
+                        ? appCfg.getVisionSystemPrompt()
+                        : AgentPrompts.VISION_SYSTEM;
+        String visionModel =
+                StringUtils.hasText(appCfg.getVisionModelName())
+                        ? appCfg.getVisionModelName().trim()
+                        : defaultVisionModelName;
 
         List<String> kbSources = new ArrayList<>();
         String augmented = task;
@@ -88,14 +110,15 @@ public class AgentService {
                     UserMessage.builder().text(augmented).media(media).build();
 
             ChatClient client =
-                    ChatClient.builder(visionChatModel).defaultSystem(AgentPrompts.VISION_SYSTEM).build();
-            String answer = client.prompt().messages(message).call().content();
+                    ChatClient.builder(visionChatModel).defaultSystem(visionSystem).build();
+            OllamaOptions visionOpts = OllamaOptions.builder().model(visionModel).build();
+            String answer = client.prompt().options(visionOpts).messages(message).call().content();
             String mode = knowledgeBaseId != null ? "vision+kb" : "vision";
             return new AgentRunResponse(answer, List.copyOf(kbSources), mode);
         }
 
         ChatClient textClient =
-                ChatClient.builder(textChatModel).defaultSystem(AgentPrompts.AGENT_SYSTEM).build();
+                ChatClient.builder(textChatModel).defaultSystem(textSystem).build();
         String answer = textClient.prompt().user(augmented).call().content();
         String mode = knowledgeBaseId != null ? "chat+kb" : "chat";
         return new AgentRunResponse(answer, List.copyOf(kbSources), mode);

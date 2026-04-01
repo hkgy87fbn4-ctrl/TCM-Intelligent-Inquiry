@@ -25,6 +25,7 @@ class AgentControllerWebMvcTest {
     @Autowired private MockMvc mockMvc;
 
     @MockBean private AgentService agentService;
+    @MockBean private AgentAppConfigService agentAppConfigService;
 
     @Test
     void moduleInfoOk() throws Exception {

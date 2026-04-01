@@ -52,6 +52,24 @@ public class LiteratureRagService {
         this.apiProperties = apiProperties;
     }
 
+    /**
+     * 供问诊流式接口注入文献向量摘录（与知识库 RAG 二选一，由上层校验）。
+     */
+    public KnowledgeContextBundle retrieveContextForConsultation(
+            String tempCollectionId,
+            String userQuery,
+            Integer topK,
+            Double similarityThreshold) {
+        if (tempCollectionId == null || tempCollectionId.isBlank()) {
+            throw new IllegalArgumentException("literatureCollectionId is required");
+        }
+        LiteratureQueryRequest req = new LiteratureQueryRequest();
+        req.setMessage(userQuery != null ? userQuery.trim() : "");
+        req.setTopK(topK);
+        req.setSimilarityThreshold(similarityThreshold);
+        return retrieveContext(tempCollectionId.trim(), req);
+    }
+
     public LiteratureQueryResponse query(String tempCollectionId, LiteratureQueryRequest req) {
         KnowledgeContextBundle bundle = retrieveContext(tempCollectionId, req);
         String userPrompt = buildUserPrompt(bundle, req.getMessage());

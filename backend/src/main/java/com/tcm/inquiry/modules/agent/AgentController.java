@@ -6,6 +6,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -15,6 +16,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.tcm.inquiry.common.ApiResult;
 import com.tcm.inquiry.common.R;
+import com.tcm.inquiry.modules.agent.dto.AgentConfigUpdateRequest;
+import com.tcm.inquiry.modules.agent.dto.AgentConfigView;
 
 import jakarta.validation.Valid;
 
@@ -23,14 +26,27 @@ import jakarta.validation.Valid;
 public class AgentController {
 
     private final AgentService agentService;
+    private final AgentAppConfigService agentAppConfigService;
 
-    public AgentController(AgentService agentService) {
+    public AgentController(AgentService agentService, AgentAppConfigService agentAppConfigService) {
         this.agentService = agentService;
+        this.agentAppConfigService = agentAppConfigService;
     }
 
     @GetMapping("/health")
     public ResponseEntity<ApiResult<String>> health() {
         return ResponseEntity.ok(R.ok("agent"));
+    }
+
+    @GetMapping("/config")
+    public ResponseEntity<ApiResult<AgentConfigView>> getConfig() {
+        return ResponseEntity.ok(R.ok(agentAppConfigService.getView()));
+    }
+
+    @PutMapping("/config")
+    public ResponseEntity<ApiResult<AgentConfigView>> updateConfig(
+            @Valid @RequestBody AgentConfigUpdateRequest body) {
+        return ResponseEntity.ok(R.ok(agentAppConfigService.update(body)));
     }
 
     @PostMapping(value = "/run", consumes = MediaType.APPLICATION_JSON_VALUE)

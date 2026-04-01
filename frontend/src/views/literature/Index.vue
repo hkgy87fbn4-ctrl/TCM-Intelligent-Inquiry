@@ -3,14 +3,12 @@ import { onMounted, ref, watch } from 'vue'
 import { apiClient } from '@/api/client'
 import { getErrorMessage } from '@/api/errors'
 import type { ApiResult } from '@/types/api'
-import { openSseStream } from '@/api/sse'
 import type { LiteratureFileView } from '@/types/literature'
 import {
   formatHealthStatus,
   isHealthStatusErr,
   isHealthStatusOk,
 } from '@/utils/formatHealthStatus'
-import MarkdownContent from '@/components/MarkdownContent.vue'
 
 const health = ref('加载中…')
 const collectionId = ref<string | null>(null)
@@ -19,18 +17,6 @@ const loadingFiles = ref(false)
 const uploading = ref(false)
 const msg = ref('')
 const chunkSize = ref(512)
-const queryText = ref('请概括文献中与食疗或体质相关的内容要点。')
-const topK = ref(4)
-const threshold = ref(0)
-const ragAnswer = ref('')
-const ragSources = ref<string[]>([])
-const ragLoading = ref(false)
-const ragError = ref<string | null>(null)
-let ragAbort: AbortController | null = null
-
-function stopRag() {
-  ragAbort?.abort()
-}
 
 async function refreshHealth() {
   try {
@@ -95,6 +81,7 @@ async function onFileChange(e: Event) {
 
 async function removeFile(fileUuid: string) {
   if (!collectionId.value) return
+  if (!confirm('确定从当前文献库删除此文件及其向量？')) return
   await apiClient.delete(
     `/v1/literature/collections/${encodeURIComponent(collectionId.value)}/documents/${encodeURIComponent(fileUuid)}`
   )
@@ -107,65 +94,20 @@ async function purgeCollection() {
   await apiClient.delete(`/v1/literature/collections/${encodeURIComponent(collectionId.value)}`)
   collectionId.value = null
   files.value = []
-  ragAnswer.value = ''
-  ragSources.value = []
   msg.value = '已清空临时库'
 }
 
 async function newCollection() {
   collectionId.value = null
   files.value = []
-  ragAnswer.value = ''
-  ragSources.value = []
   msg.value = '请上传首个文件，将自动新建临时文献库'
 }
 
-async function runQuery() {
-  if (!collectionId.value || !queryText.value.trim()) return
-  ragLoading.value = true
-  ragError.value = null
-  ragAnswer.value = ''
-  ragSources.value = []
-  ragAbort = new AbortController()
-  const cid = encodeURIComponent(collectionId.value)
-  let acc = ''
+function formatDate(iso: string) {
   try {
-    await openSseStream(
-      `/api/v1/literature/collections/${cid}/query/stream`,
-      (chunk) => {
-        if (chunk === '[DONE]') return
-        acc += chunk
-        ragAnswer.value = acc
-      },
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: queryText.value.trim(),
-          topK: topK.value,
-          similarityThreshold: threshold.value,
-        }),
-        signal: ragAbort.signal,
-        onNamedEvent: (name, data) => {
-          if (name !== 'meta') return
-          try {
-            const o = JSON.parse(data) as { sources?: string[] }
-            ragSources.value = o.sources ?? []
-          } catch {
-            /* ignore */
-          }
-        },
-      }
-    )
-  } catch (e: unknown) {
-    if ((e as Error)?.name === 'AbortError') {
-      ragError.value = acc ? '已停止生成' : null
-      return
-    }
-    ragError.value = getErrorMessage(e)
-  } finally {
-    ragLoading.value = false
-    ragAbort = null
+    return new Date(iso).toLocaleString()
+  } catch {
+    return iso
   }
 }
 
@@ -176,12 +118,14 @@ onMounted(async () => {
 
 <template>
   <div
-    class="ds-page"
-    style="max-width: 45rem"
+    class="ds-page lit-page"
   >
     <h2 class="ds-h2">
-      医学文献问答（临时 RAG · Ollama）
+      文献库管理
     </h2>
+    <p class="ds-lead lit-lead">
+      上传与解析文献向量；基于文献的问答请在「智能问诊」中选择「文献库」并指定本页显示的临时库 ID。
+    </p>
     <p
       class="ds-status lit-health"
       :class="
@@ -193,9 +137,6 @@ onMounted(async () => {
       "
     >
       {{ health }}
-    </p>
-    <p class="ds-lead">
-      上传的文献解析、分块与向量化与「知识库」相同，向量元数据使用独立字段，仅在本临时库内检索；可多次向同一库追加文件。
     </p>
 
     <section class="ds-card">
@@ -269,119 +210,85 @@ onMounted(async () => {
       >
         加载列表…
       </p>
-      <ul
-        v-else
-        class="ds-list"
-      >
-        <li
-          v-for="f in files"
-          :key="f.fileUuid || f.id"
-        >
-          <span>{{ f.originalFilename }}</span>
-          <span class="ds-muted">{{ (f.sizeBytes / 1024).toFixed(1) }} KB</span>
-          <span class="ds-badge">{{ f.status }}</span>
-          <button
-            v-if="f.fileUuid"
-            type="button"
-            class="ds-link-danger"
-            @click="removeFile(f.fileUuid)"
-          >
-            删除
-          </button>
-        </li>
-        <li v-if="files.length === 0 && collectionId">
-          <span class="ds-muted">库内暂无文件记录</span>
-        </li>
-      </ul>
-    </section>
-
-    <section class="ds-card">
-      <h3 class="ds-h3 ds-card__title">
-        文献问答
-      </h3>
-      <p class="ds-hint">
-        流式生成（SSE），协议与知识库问答一致。
-      </p>
-      <textarea
-        v-model="queryText"
-        rows="3"
-        class="ds-textarea"
-        placeholder="基于已上传文献提问…"
-      />
-      <div class="rag-toolbar">
-        <div class="rag-params">
-          <label class="ds-field lit-field-inline">
-            Top-K
-            <input
-              v-model.number="topK"
-              class="ds-input ds-input--narrow"
-              type="number"
-              inputmode="numeric"
-              min="1"
-              max="20"
-            >
-          </label>
-          <label class="ds-field lit-field-inline">
-            相似度阈值（0=不过滤）
-            <input
-              v-model.number="threshold"
-              class="ds-input ds-input--xs"
-              type="number"
-              inputmode="decimal"
-              min="0"
-              max="1"
-              step="0.05"
-            >
-          </label>
-        </div>
-        <div class="rag-toolbar__actions">
-          <button
-            type="button"
-            class="ds-btn ds-btn--primary"
-            :disabled="ragLoading || !collectionId"
-            @click="runQuery"
-          >
-            {{ ragLoading ? '生成中…' : '检索并生成' }}
-          </button>
-          <button
-            v-if="ragLoading"
-            type="button"
-            class="ds-btn ds-btn--warn"
-            @click="stopRag"
-          >
-            停止
-          </button>
-        </div>
-      </div>
-      <p
-        v-if="ragError"
-        class="ds-msg--error"
-      >
-        {{ ragError }}
-      </p>
       <div
-        v-if="ragAnswer"
-        class="ds-answer"
+        v-else
+        class="lit-table-wrap"
       >
-        <h4 class="ds-h4">
-          回答
-        </h4>
-        <MarkdownContent
-          class="ds-answer__body"
-          :source="ragAnswer"
-        />
-        <p
-          v-if="ragSources.length"
-          class="ds-answer__sources"
+        <table
+          class="lit-table"
+          aria-label="文献文件"
         >
-          <strong>来源：</strong>{{ ragSources.join('、') }}
-        </p>
+          <thead>
+            <tr>
+              <th scope="col">
+                文档名
+              </th>
+              <th scope="col">
+                大小
+              </th>
+              <th scope="col">
+                解析状态
+              </th>
+              <th scope="col">
+                上传时间
+              </th>
+              <th scope="col">
+                操作
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="f in files"
+              :key="f.fileUuid || String(f.id)"
+            >
+              <td>{{ f.originalFilename }}</td>
+              <td>{{ (f.sizeBytes / 1024).toFixed(1) }} KB</td>
+              <td>
+                <span class="ds-badge">{{ f.status }}</span>
+              </td>
+              <td class="lit-table__mono">
+                {{ formatDate(f.createdAt) }}
+              </td>
+              <td>
+                <button
+                  v-if="f.fileUuid"
+                  type="button"
+                  class="ds-link-danger"
+                  @click="removeFile(f.fileUuid)"
+                >
+                  删除
+                </button>
+                <span
+                  v-else
+                  class="ds-muted"
+                >—</span>
+              </td>
+            </tr>
+            <tr v-if="files.length === 0 && collectionId">
+              <td
+                colspan="5"
+                class="ds-muted"
+              >
+                库内暂无文件记录
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
   </div>
 </template>
 
 <style scoped>
+.lit-page {
+  max-width: 56rem;
+}
+.lit-lead {
+  margin-top: -0.25rem;
+  margin-bottom: 0.75rem;
+  max-width: 42rem;
+}
 .lit-health {
   margin-bottom: 0.75rem;
 }
@@ -419,25 +326,29 @@ onMounted(async () => {
 .lit-file-btn {
   flex-shrink: 0;
 }
-.rag-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 1rem;
+.lit-table-wrap {
   margin-top: 0.75rem;
+  overflow-x: auto;
 }
-.rag-params {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem;
-  margin-right: auto;
+.lit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
 }
-.rag-toolbar__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.65rem;
+.lit-table th,
+.lit-table td {
+  text-align: left;
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.lit-table th {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+.lit-table__mono {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
 }
 </style>

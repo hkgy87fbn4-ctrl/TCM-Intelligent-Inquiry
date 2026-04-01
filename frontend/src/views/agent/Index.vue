@@ -3,25 +3,26 @@ import { onMounted, ref } from 'vue'
 import { apiClient } from '@/api/client'
 import { getErrorMessage } from '@/api/errors'
 import type { ApiResult } from '@/types/api'
+import type { AgentConfigView } from '@/types/agent'
 import type { KnowledgeBase } from '@/types/knowledge'
-import type { AgentRunResponse } from '@/types/agent'
 import {
   formatHealthStatus,
   isHealthStatusErr,
   isHealthStatusOk,
 } from '@/utils/formatHealthStatus'
-import MarkdownContent from '@/components/MarkdownContent.vue'
 
 const health = ref('加载中…')
-const task = ref('请根据图像与知识库摘录，说明该药材可能的名称及使用注意。')
-/** 空字符串表示不用知识库 */
-const kbSelection = ref<string>('')
 const bases = ref<KnowledgeBase[]>([])
-const ragTopK = ref(4)
-const ragThreshold = ref(0)
 const loading = ref(false)
-const error = ref<string | null>(null)
-const result = ref<AgentRunResponse | null>(null)
+const loadErr = ref<string | null>(null)
+const saveMsg = ref<string | null>(null)
+const saveErr = ref<string | null>(null)
+
+const displayName = ref('')
+const textSystemPrompt = ref('')
+const visionSystemPrompt = ref('')
+const visionModelName = ref('')
+const defaultKnowledgeBaseId = ref<number | null>(null)
 
 async function refreshHealth() {
   try {
@@ -38,56 +39,48 @@ async function loadBases() {
     if (data.code !== 0) throw new Error(data.message)
     bases.value = data.data ?? []
   } catch {
-    /* 知识库不可用时仍可跑纯对话/识图 */
+    bases.value = []
   }
 }
 
-async function runJsonOnly() {
-  error.value = null
-  result.value = null
+async function loadConfig() {
+  loadErr.value = null
   loading.value = true
   try {
-    const body: Record<string, unknown> = { task: task.value.trim() }
-    if (kbSelection.value !== '') {
-      body.knowledgeBaseId = Number(kbSelection.value)
-      body.ragTopK = ragTopK.value
-      body.ragSimilarityThreshold = ragThreshold.value
-    }
-    const { data } = await apiClient.post<ApiResult<AgentRunResponse>>('/v1/agent/run', body)
+    const { data } = await apiClient.get<ApiResult<AgentConfigView>>('/v1/agent/config')
     if (data.code !== 0) throw new Error(data.message)
-    result.value = data.data ?? null
+    const c = data.data
+    if (c) {
+      displayName.value = c.displayName ?? ''
+      textSystemPrompt.value = c.textSystemPrompt ?? ''
+      visionSystemPrompt.value = c.visionSystemPrompt ?? ''
+      visionModelName.value = c.visionModelName ?? ''
+      defaultKnowledgeBaseId.value = c.defaultKnowledgeBaseId ?? null
+    }
   } catch (e) {
-    error.value = getErrorMessage(e)
+    loadErr.value = getErrorMessage(e)
   } finally {
     loading.value = false
   }
 }
 
-async function onImageChange(e: Event) {
-  const input = e.target as HTMLInputElement
-  const f = input.files?.[0]
-  input.value = ''
-  if (!f || !task.value.trim()) {
-    error.value = '请先填写任务描述，再选择图片'
-    return
-  }
-  error.value = null
-  result.value = null
+async function saveConfig() {
+  saveMsg.value = null
+  saveErr.value = null
   loading.value = true
   try {
-    const fd = new FormData()
-    fd.append('task', task.value.trim())
-    if (kbSelection.value !== '') {
-      fd.append('knowledgeBaseId', kbSelection.value)
-      fd.append('ragTopK', String(ragTopK.value))
-      fd.append('ragSimilarityThreshold', String(ragThreshold.value))
-    }
-    fd.append('image', f)
-    const { data } = await apiClient.post<ApiResult<AgentRunResponse>>('/v1/agent/run', fd)
+    const { data } = await apiClient.put<ApiResult<AgentConfigView>>('/v1/agent/config', {
+      displayName: displayName.value.trim() || '中医智能体',
+      textSystemPrompt: textSystemPrompt.value.trim() || null,
+      visionSystemPrompt: visionSystemPrompt.value.trim() || null,
+      visionModelName: visionModelName.value.trim() || null,
+      defaultKnowledgeBaseId: defaultKnowledgeBaseId.value,
+    })
     if (data.code !== 0) throw new Error(data.message)
-    result.value = data.data ?? null
+    saveMsg.value = '已保存'
+    await loadConfig()
   } catch (e) {
-    error.value = getErrorMessage(e)
+    saveErr.value = getErrorMessage(e)
   } finally {
     loading.value = false
   }
@@ -96,17 +89,20 @@ async function onImageChange(e: Event) {
 onMounted(async () => {
   await refreshHealth()
   await loadBases()
+  await loadConfig()
 })
 </script>
 
 <template>
   <div
-    class="ds-page"
-    style="max-width: 45rem"
+    class="ds-page agent-page"
   >
     <h2 class="ds-h2">
-      中医智能体
+      智能体配置
     </h2>
+    <p class="ds-lead agent-lead">
+      编排视觉 / 文本智能体的 System Prompt 与默认模型；执行与多模态对话请在「智能问诊」中选择「视觉智能体」。
+    </p>
     <p
       class="ds-status agent-health"
       :class="
@@ -119,146 +115,148 @@ onMounted(async () => {
     >
       {{ health }}
     </p>
-    <p class="ds-lead">
-      文本对话走默认 Ollama Chat 模型；上传图片时使用配置的视觉模型（如 qwen3-vl）。可选勾选知识库，将先做向量检索再把摘录与任务一并交给模型。
+
+    <p
+      v-if="loadErr"
+      class="ds-msg--error"
+    >
+      {{ loadErr }}
     </p>
 
     <section class="ds-card">
       <h3 class="ds-h3 ds-card__title">
-        任务
+        基本与模型
       </h3>
-      <textarea
-        v-model="task"
-        rows="4"
-        class="ds-textarea"
-        placeholder="描述要让智能体做什么…"
-      />
-      <div class="ds-row agent-row">
+      <div class="agent-fields">
+        <label class="ds-field">
+          显示名称
+          <input
+            v-model="displayName"
+            class="ds-input"
+            type="text"
+            maxlength="200"
+            :disabled="loading"
+          >
+        </label>
+        <label class="ds-field">
+          默认视觉模型（Ollama）
+          <input
+            v-model="visionModelName"
+            class="ds-input"
+            type="text"
+            placeholder="例如 qwen3-vl:2b"
+            :disabled="loading"
+          >
+        </label>
         <label
           v-if="bases.length"
-          class="ds-field agent-kb"
+          class="ds-field"
         >
-          知识库（可选）
+          默认关联知识库（问诊视觉模式可预填）
           <select
-            v-model="kbSelection"
+            v-model.number="defaultKnowledgeBaseId"
             class="ds-select"
+            :disabled="loading"
           >
-            <option value="">不使用知识库</option>
+            <option :value="null">
+              不默认
+            </option>
             <option
               v-for="b in bases"
               :key="b.id"
-              :value="String(b.id)"
+              :value="b.id"
             >
               {{ b.name }} (id={{ b.id }})
             </option>
           </select>
         </label>
-        <template v-if="kbSelection !== ''">
-          <label class="ds-field">
-            RAG Top-K
-            <input
-              v-model.number="ragTopK"
-              class="ds-input ds-input--narrow"
-              type="number"
-              inputmode="numeric"
-              min="1"
-              max="20"
-            >
-          </label>
-          <label class="ds-field">
-            相似度阈值
-            <input
-              v-model.number="ragThreshold"
-              class="ds-input ds-input--narrow"
-              type="number"
-              inputmode="decimal"
-              min="0"
-              max="1"
-              step="0.05"
-            >
-          </label>
-        </template>
-      </div>
-      <div class="ds-row agent-actions">
-        <button
-          type="button"
-          class="ds-btn ds-btn--primary"
-          :disabled="loading"
-          @click="runJsonOnly"
-        >
-          {{ loading ? '运行中…' : '仅文本运行' }}
-        </button>
-        <label class="ds-file-label ds-file-label--btn-secondary agent-file">
-          选择图片并运行（多模态）
-          <input
-            type="file"
-            accept="image/*"
-            :disabled="loading"
-            @change="onImageChange"
-          >
-        </label>
-      </div>
-      <p
-        v-if="error"
-        class="ds-msg--error"
-      >
-        {{ error }}
-      </p>
-      <div
-        v-if="result"
-        class="ds-answer agent-out"
-      >
-        <p class="agent-result-meta">
-          <span class="ds-badge">{{ result.mode }}</span>
-          <span
-            v-if="result.knowledgeSources?.length"
-            class="ds-muted agent-src"
-          >
-            知识库来源：{{ result.knowledgeSources.join('、') }}
-          </span>
-        </p>
-        <MarkdownContent
-          class="agent-body"
-          :source="result.assistant"
-        />
       </div>
     </section>
+
+    <section class="ds-card">
+      <h3 class="ds-h3 ds-card__title">
+        System Prompt
+      </h3>
+      <p class="ds-hint">
+        留空则使用服务端内置默认文案。文本路径对应无图任务；视觉路径对应带图多模态调用。
+      </p>
+      <label class="ds-field agent-prompt-field">
+        文本智能体 System
+        <textarea
+          v-model="textSystemPrompt"
+          class="ds-textarea"
+          rows="8"
+          :disabled="loading"
+        />
+      </label>
+      <label class="ds-field agent-prompt-field">
+        视觉智能体 System
+        <textarea
+          v-model="visionSystemPrompt"
+          class="ds-textarea"
+          rows="10"
+          :disabled="loading"
+        />
+      </label>
+    </section>
+
+    <div class="agent-footer">
+      <button
+        type="button"
+        class="ds-btn ds-btn--primary"
+        :disabled="loading"
+        @click="saveConfig"
+      >
+        {{ loading ? '处理中…' : '保存配置' }}
+      </button>
+      <button
+        type="button"
+        class="ds-btn ds-btn--secondary"
+        :disabled="loading"
+        @click="loadConfig"
+      >
+        重新加载
+      </button>
+    </div>
+    <p
+      v-if="saveMsg"
+      class="ds-msg--success"
+    >
+      {{ saveMsg }}
+    </p>
+    <p
+      v-if="saveErr"
+      class="ds-msg--error"
+    >
+      {{ saveErr }}
+    </p>
   </div>
 </template>
 
 <style scoped>
+.agent-page {
+  max-width: 46rem;
+}
+.agent-lead {
+  margin-top: -0.25rem;
+  margin-bottom: 0.65rem;
+  max-width: 40rem;
+}
 .agent-health {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
-.agent-row {
-  align-items: center;
-  flex-wrap: wrap;
+.agent-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
-.agent-kb .ds-select {
-  max-width: 100%;
+.agent-prompt-field {
+  margin-top: 0.75rem;
 }
-.agent-actions {
-  justify-content: flex-end;
-  margin-top: 1rem;
-  gap: 0.75rem;
-}
-.agent-file {
-  flex-shrink: 0;
-}
-.agent-out {
-  margin-top: 1rem;
-}
-.agent-result-meta {
-  margin: 0 0 0.75rem;
+.agent-footer {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-}
-.agent-src {
-  margin: 0;
-}
-.agent-body {
-  margin: 0;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
 }
 </style>

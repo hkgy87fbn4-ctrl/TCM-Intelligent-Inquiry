@@ -3,14 +3,12 @@ import { onMounted, ref, watch } from 'vue'
 import { apiClient } from '@/api/client'
 import { getErrorMessage } from '@/api/errors'
 import type { ApiResult } from '@/types/api'
-import { openSseStream } from '@/api/sse'
 import type { KnowledgeBase, KnowledgeFileView } from '@/types/knowledge'
 import {
   formatHealthStatus,
   isHealthStatusErr,
   isHealthStatusOk,
 } from '@/utils/formatHealthStatus'
-import MarkdownContent from '@/components/MarkdownContent.vue'
 
 const health = ref('加载中…')
 const bases = ref<KnowledgeBase[]>([])
@@ -21,18 +19,7 @@ const uploading = ref(false)
 const ingestMsg = ref('')
 const newBaseName = ref('默认知识库')
 const newBaseEmbed = ref('bge-m3:latest')
-const queryText = ref('百合薏米粥适合什么体质简要说明？')
-const topK = ref(4)
-const ragAnswer = ref('')
-const ragSources = ref<string[]>([])
-const ragLoading = ref(false)
-const ragError = ref<string | null>(null)
 const chunkSize = ref(512)
-let ragAbort: AbortController | null = null
-
-function stopRag() {
-  ragAbort?.abort()
-}
 
 async function refreshHealth() {
   try {
@@ -110,60 +97,18 @@ async function onFileChange(e: Event) {
 
 async function removeFile(fileUuid: string) {
   if (selectedBaseId.value == null) return
+  if (!confirm('确定从该知识库删除此文档及其向量？')) return
   await apiClient.delete<ApiResult<unknown>>(
     `/v1/knowledge/bases/${selectedBaseId.value}/documents/${fileUuid}`
   )
   await loadFiles()
 }
 
-async function runQuery() {
-  if (selectedBaseId.value == null || !queryText.value.trim()) return
-  ragLoading.value = true
-  ragError.value = null
-  ragAnswer.value = ''
-  ragSources.value = []
-  ragAbort = new AbortController()
-  let acc = ''
+function formatDate(iso: string) {
   try {
-    await openSseStream(
-      `/api/v1/knowledge/bases/${selectedBaseId.value}/query/stream`,
-      (chunk) => {
-        if (chunk === '[DONE]') return
-        acc += chunk
-        ragAnswer.value = acc
-      },
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: queryText.value.trim(),
-          topK: topK.value,
-          similarityThreshold: 0,
-        }),
-        signal: ragAbort.signal,
-        onNamedEvent: (name, data) => {
-          if (name !== 'meta') return
-          try {
-            const o = JSON.parse(data) as {
-              sources?: string[]
-              retrievedChunks?: number
-            }
-            ragSources.value = o.sources ?? []
-          } catch {
-            /* ignore */
-          }
-        },
-      }
-    )
-  } catch (e: unknown) {
-    if ((e as Error)?.name === 'AbortError') {
-      ragError.value = acc ? '已停止生成' : null
-      return
-    }
-    ragError.value = getErrorMessage(e)
-  } finally {
-    ragLoading.value = false
-    ragAbort = null
+    return new Date(iso).toLocaleString()
+  } catch {
+    return iso
   }
 }
 
@@ -183,12 +128,14 @@ onMounted(async () => {
 
 <template>
   <div
-    class="ds-page"
-    style="max-width: 45rem"
+    class="ds-page kb-page"
   >
     <h2 class="ds-h2">
-      中医药知识库（RAG）
+      知识库管理
     </h2>
+    <p class="ds-lead kb-lead">
+      在此维护向量知识库与文档；问答与 RAG 请使用主导航「智能问诊」统一入口，并选择「知识库 RAG」模式。
+    </p>
     <p
       class="ds-status kb-health"
       :class="
@@ -246,10 +193,10 @@ onMounted(async () => {
 
     <section class="ds-card">
       <h3 class="ds-h3 ds-card__title">
-        上传与文档
+        上传与文档列表
       </h3>
       <p class="ds-hint">
-        使用 Apache Tika 解析 PDF/Word/TXT 等；分块大小（token 约估）可调整。
+        使用 Apache Tika 解析 PDF/Word/TXT 等；分块约长可调整。删除会移除向量切片，需重新上传才能再次检索。
       </p>
       <div class="ds-row ds-row--center kb-upload-row">
         <label class="ds-field kb-field-inline">
@@ -285,103 +232,78 @@ onMounted(async () => {
       >
         加载文件列表…
       </p>
-      <ul
-        v-else
-        class="ds-list"
-      >
-        <li
-          v-for="f in files"
-          :key="f.fileUuid"
-        >
-          <span>{{ f.originalFilename }}</span>
-          <span class="ds-muted">{{ (f.sizeBytes / 1024).toFixed(1) }} KB</span>
-          <button
-            type="button"
-            class="ds-link-danger"
-            @click="removeFile(f.fileUuid)"
-          >
-            删除
-          </button>
-        </li>
-        <li v-if="files.length === 0">
-          <span class="ds-muted">暂无文件</span>
-        </li>
-      </ul>
-    </section>
-
-    <section class="ds-card">
-      <h3 class="ds-h3 ds-card__title">
-        知识问答
-      </h3>
-      <p class="ds-hint">
-        流式生成（SSE）；来源文件在首包 meta 中展示。
-      </p>
-      <textarea
-        v-model="queryText"
-        rows="3"
-        class="ds-textarea"
-        placeholder="输入问题…"
-      />
-      <div class="rag-toolbar">
-        <label class="ds-field rag-field-inline">
-          Top-K
-          <input
-            v-model.number="topK"
-            class="ds-input ds-input--narrow"
-            type="number"
-            inputmode="numeric"
-            min="1"
-            max="20"
-          >
-        </label>
-        <div class="rag-toolbar__actions">
-          <button
-            type="button"
-            class="ds-btn ds-btn--primary"
-            :disabled="ragLoading"
-            @click="runQuery"
-          >
-            {{ ragLoading ? '生成中…' : '检索并生成' }}
-          </button>
-          <button
-            v-if="ragLoading"
-            type="button"
-            class="ds-btn ds-btn--warn"
-            @click="stopRag"
-          >
-            停止
-          </button>
-        </div>
-      </div>
-      <p
-        v-if="ragError"
-        class="ds-msg--error"
-      >
-        {{ ragError }}
-      </p>
       <div
-        v-if="ragAnswer"
-        class="ds-answer"
+        v-else
+        class="kb-table-wrap"
       >
-        <h4 class="ds-h4">
-          回答
-        </h4>
-        <MarkdownContent
-          class="ds-answer__body"
-          :source="ragAnswer"
-        />
-        <p
-          v-if="ragSources.length"
-          class="ds-answer__sources"
+        <table
+          class="kb-table"
+          aria-label="知识库文档"
         >
-          <strong>来源文件：</strong>{{ ragSources.join('、') }}
-        </p>
+          <thead>
+            <tr>
+              <th scope="col">
+                文档名
+              </th>
+              <th scope="col">
+                大小
+              </th>
+              <th scope="col">
+                类型
+              </th>
+              <th scope="col">
+                上传时间
+              </th>
+              <th scope="col">
+                操作
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="f in files"
+              :key="f.fileUuid"
+            >
+              <td>{{ f.originalFilename }}</td>
+              <td>{{ (f.sizeBytes / 1024).toFixed(1) }} KB</td>
+              <td>{{ f.contentType ?? '—' }}</td>
+              <td class="kb-table__mono">
+                {{ formatDate(f.createdAt) }}
+              </td>
+              <td>
+                <button
+                  type="button"
+                  class="ds-link-danger"
+                  @click="removeFile(f.fileUuid)"
+                >
+                  删除
+                </button>
+              </td>
+            </tr>
+            <tr v-if="files.length === 0">
+              <td
+                colspan="5"
+                class="ds-muted"
+              >
+                暂无文件
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
   </div>
 </template>
 
 <style scoped>
+.kb-page {
+  max-width: 56rem;
+}
+.kb-lead {
+  margin-top: -0.25rem;
+  margin-bottom: 0.75rem;
+  max-width: 40rem;
+}
 .kb-health {
   margin-bottom: 1.25rem;
 }
@@ -418,27 +340,29 @@ onMounted(async () => {
 .kb-file-btn {
   flex-shrink: 0;
 }
-.rag-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 1rem;
+.kb-table-wrap {
   margin-top: 0.75rem;
+  overflow-x: auto;
 }
-.rag-field-inline {
-  margin-right: auto;
-  flex-direction: row;
-  align-items: center;
-  gap: 0.65rem;
+.kb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
 }
-.rag-field-inline .ds-input {
-  width: 5.5rem;
+.kb-table th,
+.kb-table td {
+  text-align: left;
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid var(--color-border);
 }
-.rag-toolbar__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.65rem;
+.kb-table th {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+.kb-table__mono {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+  color: var(--color-muted);
 }
 </style>

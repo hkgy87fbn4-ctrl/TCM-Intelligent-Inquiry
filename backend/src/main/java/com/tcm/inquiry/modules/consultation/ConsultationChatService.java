@@ -2,6 +2,7 @@ package com.tcm.inquiry.modules.consultation;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -24,6 +25,7 @@ import com.tcm.inquiry.config.TcmApiProperties;
 import com.tcm.inquiry.modules.consultation.dto.ConsultationChatRequest;
 import com.tcm.inquiry.modules.knowledge.KnowledgeContextBundle;
 import com.tcm.inquiry.modules.knowledge.KnowledgeRagService;
+import com.tcm.inquiry.modules.literature.LiteratureRagService;
 import com.tcm.inquiry.modules.consultation.entity.ChatMessage;
 import com.tcm.inquiry.modules.consultation.repository.ChatMessageRepository;
 import com.tcm.inquiry.modules.consultation.repository.ChatSessionRepository;
@@ -45,6 +47,7 @@ public class ConsultationChatService {
     private final Executor sseAsyncExecutor;
     private final TcmApiProperties apiProperties;
     private final KnowledgeRagService knowledgeRagService;
+    private final LiteratureRagService literatureRagService;
 
     @Value("${spring.ai.ollama.chat.options.model:deepseek-r1:8b}")
     private String defaultChatModelName;
@@ -56,7 +59,8 @@ public class ConsultationChatService {
             ConsultationMessageStore consultationMessageStore,
             @Qualifier("sseAsyncExecutor") Executor sseAsyncExecutor,
             TcmApiProperties apiProperties,
-            KnowledgeRagService knowledgeRagService) {
+            KnowledgeRagService knowledgeRagService,
+            LiteratureRagService literatureRagService) {
         this.chatModel = chatModel;
         this.chatSessionRepository = chatSessionRepository;
         this.chatMessageRepository = chatMessageRepository;
@@ -64,6 +68,7 @@ public class ConsultationChatService {
         this.sseAsyncExecutor = sseAsyncExecutor;
         this.apiProperties = apiProperties;
         this.knowledgeRagService = knowledgeRagService;
+        this.literatureRagService = literatureRagService;
     }
 
     /**
@@ -83,7 +88,14 @@ public class ConsultationChatService {
 
         List<Message> historyMessages = buildHistoryMessages(req.getSessionId(), maxTurns);
         String userInput = req.getMessage().trim();
+        String litRaw = req.getLiteratureCollectionId();
+        boolean hasLiterature = litRaw != null && !litRaw.isBlank();
+        if (req.getKnowledgeBaseId() != null && hasLiterature) {
+            throw new IllegalArgumentException("不能同时挂载知识库与文献库");
+        }
+
         KnowledgeContextBundle kbBundle = null;
+        KnowledgeContextBundle litBundle = null;
         String modelUserInput;
         if (req.getKnowledgeBaseId() != null) {
             kbBundle =
@@ -97,24 +109,37 @@ public class ConsultationChatService {
                             + kbBundle.contextText()
                             + "\n\n【用户主诉】\n"
                             + userInput;
+        } else if (hasLiterature) {
+            litBundle =
+                    literatureRagService.retrieveContextForConsultation(
+                            litRaw.trim(),
+                            userInput,
+                            req.getLiteratureRagTopK(),
+                            req.getLiteratureSimilarityThreshold());
+            modelUserInput =
+                    "【文献摘录】\n"
+                            + litBundle.contextText()
+                            + "\n\n【用户主诉】\n"
+                            + userInput;
         } else {
             modelUserInput = userInput;
         }
 
         SseEmitter emitter = new SseEmitter(600_000L);
-        if (kbBundle != null) {
+        if (kbBundle != null || litBundle != null) {
             try {
+                Map<String, Object> metaPayload = new LinkedHashMap<>();
+                if (kbBundle != null) {
+                    metaPayload.put("sources", kbBundle.sources());
+                    metaPayload.put("retrievedChunks", kbBundle.retrievedChunks());
+                    metaPayload.put("knowledgeBaseId", req.getKnowledgeBaseId());
+                } else {
+                    metaPayload.put("sources", litBundle.sources());
+                    metaPayload.put("retrievedChunks", litBundle.retrievedChunks());
+                    metaPayload.put("literatureCollectionId", litRaw.trim());
+                }
                 emitter.send(
-                        SseEmitter.event()
-                                .name("meta")
-                                .data(
-                                        Map.of(
-                                                "sources",
-                                                kbBundle.sources(),
-                                                "retrievedChunks",
-                                                kbBundle.retrievedChunks(),
-                                                "knowledgeBaseId",
-                                                req.getKnowledgeBaseId())));
+                        SseEmitter.event().name("meta").data(metaPayload));
             } catch (IOException e) {
                 emitter.completeWithError(e);
                 return emitter;
