@@ -27,6 +27,13 @@ export type SendOptions = {
   ragSimilarityThreshold?: number | null
 }
 
+/** 问诊流式接口在关联知识库时首包 {@code event: meta} 的载荷（与知识库问答流一致）。 */
+export type ConsultationRagMeta = {
+  sources: string[]
+  retrievedChunks: number
+  knowledgeBaseId: number
+}
+
 /**
  * 中医问诊：会话列表、历史加载、SSE 流式发送、打字机状态与错误处理。
  */
@@ -38,6 +45,8 @@ export function useChat() {
   const error = ref<string | null>(null)
   /** 当前一轮助手流式累积（完成后会并入 messages） */
   const streamingContent = ref('')
+  /** 当前回合知识库检索摘要（仅当本轮请求携带 knowledgeBaseId 且收到 meta 时有效） */
+  const ragMeta = ref<ConsultationRagMeta | null>(null)
   let abort: AbortController | null = null
 
   function persistLastSession(id: number | null) {
@@ -87,6 +96,7 @@ export function useChat() {
     stop()
     error.value = null
     streamingContent.value = ''
+    ragMeta.value = null
     sessionId.value = id
     try {
       await loadHistory()
@@ -102,6 +112,7 @@ export function useChat() {
     sessionId.value = null
     messages.value = []
     streamingContent.value = ''
+    ragMeta.value = null
     error.value = null
     await ensureSession()
     if (sessionId.value != null) persistLastSession(sessionId.value)
@@ -139,6 +150,7 @@ export function useChat() {
     if (sessionId.value == null) throw new Error('无会话')
 
     error.value = null
+    ragMeta.value = null
     messages.value = [...messages.value, { role: 'user', content: text }]
     streamingContent.value = ''
     loading.value = true
@@ -159,6 +171,7 @@ export function useChat() {
     }
 
     let assistant = ''
+    const kbIdForMeta = opts?.knowledgeBaseId ?? null
     try {
       await openSseStream(
         '/api/v1/consultation/chat',
@@ -173,6 +186,28 @@ export function useChat() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
           signal: abort.signal,
+          onNamedEvent: (name, data) => {
+            if (name !== 'meta') return
+            try {
+              const o = JSON.parse(data) as Record<string, unknown>
+              const sources = Array.isArray(o.sources)
+                ? (o.sources as string[])
+                : []
+              const retrievedChunks =
+                typeof o.retrievedChunks === 'number' ? o.retrievedChunks : 0
+              const knowledgeBaseId =
+                typeof o.knowledgeBaseId === 'number'
+                  ? o.knowledgeBaseId
+                  : kbIdForMeta ?? 0
+              ragMeta.value = {
+                sources,
+                retrievedChunks,
+                knowledgeBaseId,
+              }
+            } catch {
+              /* ignore */
+            }
+          },
         }
       )
       messages.value = [
@@ -215,6 +250,7 @@ export function useChat() {
     loading,
     error,
     streamingContent,
+    ragMeta,
     fetchSessions,
     ensureSession,
     loadHistory,

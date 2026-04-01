@@ -75,7 +75,9 @@ public class ConsultationController {
     }
 
     /**
-     * 纯文本流式问诊：SSE，每条事件 data 为模型增量文本；结束前发送 data: [DONE]。错误时可能收到 event: error。
+     * 纯文本流式问诊：SSE。若请求含 {@code knowledgeBaseId}，首包 {@code event: meta}（JSON：sources、
+     * retrievedChunks、knowledgeBaseId），与知识库流式问答一致；随后 {@code message} 增量文本，结束前
+     * {@code data: [DONE]}。错误时可能收到 {@code event: error}。
      */
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter chat(@Valid @RequestBody ConsultationChatRequest body) {

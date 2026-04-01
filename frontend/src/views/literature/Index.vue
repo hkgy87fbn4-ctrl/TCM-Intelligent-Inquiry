@@ -3,7 +3,8 @@ import { onMounted, ref, watch } from 'vue'
 import { apiClient } from '@/api/client'
 import { getErrorMessage } from '@/api/errors'
 import type { ApiResult } from '@/types/api'
-import type { LiteratureFileView, LiteratureQueryResponse } from '@/types/literature'
+import { openSseStream } from '@/api/sse'
+import type { LiteratureFileView } from '@/types/literature'
 import {
   formatHealthStatus,
   isHealthStatusErr,
@@ -25,6 +26,11 @@ const ragAnswer = ref('')
 const ragSources = ref<string[]>([])
 const ragLoading = ref(false)
 const ragError = ref<string | null>(null)
+let ragAbort: AbortController | null = null
+
+function stopRag() {
+  ragAbort?.abort()
+}
 
 async function refreshHealth() {
   try {
@@ -120,25 +126,46 @@ async function runQuery() {
   ragError.value = null
   ragAnswer.value = ''
   ragSources.value = []
+  ragAbort = new AbortController()
+  const cid = encodeURIComponent(collectionId.value)
+  let acc = ''
   try {
-    const { data } = await apiClient.post<ApiResult<LiteratureQueryResponse>>(
-      `/v1/literature/collections/${encodeURIComponent(collectionId.value)}/query`,
+    await openSseStream(
+      `/api/v1/literature/collections/${cid}/query/stream`,
+      (chunk) => {
+        if (chunk === '[DONE]') return
+        acc += chunk
+        ragAnswer.value = acc
+      },
       {
-        message: queryText.value.trim(),
-        topK: topK.value,
-        similarityThreshold: threshold.value,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: queryText.value.trim(),
+          topK: topK.value,
+          similarityThreshold: threshold.value,
+        }),
+        signal: ragAbort.signal,
+        onNamedEvent: (name, data) => {
+          if (name !== 'meta') return
+          try {
+            const o = JSON.parse(data) as { sources?: string[] }
+            ragSources.value = o.sources ?? []
+          } catch {
+            /* ignore */
+          }
+        },
       }
     )
-    if (data.code !== 0) throw new Error(data.message)
-    const r = data.data
-    if (r) {
-      ragAnswer.value = r.answer
-      ragSources.value = r.sources ?? []
+  } catch (e: unknown) {
+    if ((e as Error)?.name === 'AbortError') {
+      ragError.value = acc ? '已停止生成' : null
+      return
     }
-  } catch (e) {
     ragError.value = getErrorMessage(e)
   } finally {
     ragLoading.value = false
+    ragAbort = null
   }
 }
 
@@ -272,6 +299,9 @@ onMounted(async () => {
       <h3 class="ds-h3 ds-card__title">
         文献问答
       </h3>
+      <p class="ds-hint">
+        流式生成（SSE），协议与知识库问答一致。
+      </p>
       <textarea
         v-model="queryText"
         rows="3"
@@ -309,6 +339,14 @@ onMounted(async () => {
           @click="runQuery"
         >
           {{ ragLoading ? '生成中…' : '检索并生成' }}
+        </button>
+        <button
+          v-if="ragLoading"
+          type="button"
+          class="ds-btn ds-btn--warn"
+          @click="stopRag"
+        >
+          停止
         </button>
       </div>
       <p

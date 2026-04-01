@@ -3,6 +3,7 @@ package com.tcm.inquiry.modules.consultation;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -66,14 +67,13 @@ public class ConsultationChatService {
     }
 
     /**
-     * 建立 SSE：拉历史 → 流式调用 Ollama → 结束后异步落库。
+     * 建立 SSE：拉历史 →（可选）检索知识库并发 {@code meta} → 流式调用 Ollama → 结束后异步落库。
      */
     public SseEmitter streamChat(ConsultationChatRequest req) {
         if (!chatSessionRepository.existsById(req.getSessionId())) {
             throw new IllegalArgumentException("session not found: " + req.getSessionId());
         }
 
-        SseEmitter emitter = new SseEmitter(600_000L);
         double temperature =
                 req.getTemperature() != null ? req.getTemperature() : DEFAULT_TEMPERATURE;
         int maxTurns =
@@ -83,7 +83,43 @@ public class ConsultationChatService {
 
         List<Message> historyMessages = buildHistoryMessages(req.getSessionId(), maxTurns);
         String userInput = req.getMessage().trim();
-        String modelUserInput = augmentWithKnowledgeBaseIfPresent(req, userInput);
+        KnowledgeContextBundle kbBundle = null;
+        String modelUserInput;
+        if (req.getKnowledgeBaseId() != null) {
+            kbBundle =
+                    knowledgeRagService.retrieveContext(
+                            req.getKnowledgeBaseId(),
+                            userInput,
+                            req.getRagTopK(),
+                            req.getRagSimilarityThreshold());
+            modelUserInput =
+                    "【知识库摘录】\n"
+                            + kbBundle.contextText()
+                            + "\n\n【用户主诉】\n"
+                            + userInput;
+        } else {
+            modelUserInput = userInput;
+        }
+
+        SseEmitter emitter = new SseEmitter(600_000L);
+        if (kbBundle != null) {
+            try {
+                emitter.send(
+                        SseEmitter.event()
+                                .name("meta")
+                                .data(
+                                        Map.of(
+                                                "sources",
+                                                kbBundle.sources(),
+                                                "retrievedChunks",
+                                                kbBundle.retrievedChunks(),
+                                                "knowledgeBaseId",
+                                                req.getKnowledgeBaseId())));
+            } catch (IOException e) {
+                emitter.completeWithError(e);
+                return emitter;
+            }
+        }
 
         ChatClient chatClient =
                 ChatClient.builder(chatModel).defaultSystem(ConsultationPrompts.SYSTEM).build();
@@ -184,22 +220,6 @@ public class ConsultationChatService {
             messages.add(new AssistantMessage(row.getAssistantMessage()));
         }
         return messages;
-    }
-
-    private String augmentWithKnowledgeBaseIfPresent(ConsultationChatRequest req, String userInput) {
-        if (req.getKnowledgeBaseId() == null) {
-            return userInput;
-        }
-        KnowledgeContextBundle bundle =
-                knowledgeRagService.retrieveContext(
-                        req.getKnowledgeBaseId(),
-                        userInput,
-                        req.getRagTopK(),
-                        req.getRagSimilarityThreshold());
-        return "【知识库摘录】\n"
-                + bundle.contextText()
-                + "\n\n【用户主诉】\n"
-                + userInput;
     }
 
     private String streamErrorMessage(Throwable ex) {

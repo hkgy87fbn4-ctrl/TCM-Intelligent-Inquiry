@@ -29,6 +29,7 @@ const {
   loading,
   error,
   streamingContent,
+  ragMeta,
   fetchSessions,
   openSession,
   newSession,
@@ -325,6 +326,15 @@ async function onDeleteSession(id: number, ev: Event) {
         {{ error }}
       </p>
       <p
+        v-if="ragMeta"
+        class="ds-hint consult-rag-meta"
+      >
+        本回合已注入知识库 #{{ ragMeta.knowledgeBaseId }}，检索到
+        {{ ragMeta.retrievedChunks }} 条相关片段<span
+          v-if="ragMeta.sources.length"
+        >；来源：{{ ragMeta.sources.join('、') }}</span>。
+      </p>
+      <p
         v-if="loading && !streamingContent"
         class="ds-hint"
         style="margin-top: 0"
@@ -497,6 +507,11 @@ async function onDeleteSession(id: number, ev: Event) {
   margin-top: 0.35rem;
   margin-bottom: 0.25rem;
   gap: 0.65rem;
+}
+.consult-rag-meta {
+  margin-top: 0.35rem;
+  margin-bottom: 0;
+  font-size: 0.8125rem;
 }
 @media (max-width: 52rem) {
   .consult-layout {
