@@ -1,0 +1,22 @@
+# 在 CI 或本机执行 Ollama 真机集成测试时使用：-Dspring.profiles.active=ci 且设置环境变量 OLLAMA_LIVE=true
+spring:
+  main:
+    banner-mode: "off"
+  datasource:
+    url: jdbc:sqlite:file:./target/tcm-ci-ollama-it.db
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  ai:
+    ollama:
+      base-url: http://127.0.0.1:11434
+      chat:
+        options:
+          model: tinyllama
+      embedding:
+        options:
+          model: nomic-embed-text
+
+tcm:
+  ollama:
+    vision-model: tinyllama

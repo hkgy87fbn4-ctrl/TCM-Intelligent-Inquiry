@@ -50,3 +50,6 @@ tcm:
     storage-dir: data/kb-files
   literature:
     storage-dir: data/literature-files
+  # 视觉 ChatModel Bean（AiConfig）使用的 Ollama 模型名；CI 可通过 profile 覆盖为轻量模型
+  ollama:
+    vision-model: qwen3-vl:2b

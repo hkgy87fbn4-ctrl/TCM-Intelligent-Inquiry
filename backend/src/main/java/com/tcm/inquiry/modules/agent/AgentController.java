@@ -1,14 +1,21 @@
 package com.tcm.inquiry.modules.agent;
 
-import com.tcm.inquiry.common.ApiResult;
-import com.tcm.inquiry.common.R;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.tcm.inquiry.common.ApiResult;
+import com.tcm.inquiry.common.R;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/agent")
@@ -25,10 +32,22 @@ public class AgentController {
         return ResponseEntity.ok(R.ok("agent"));
     }
 
-    @PostMapping("/run")
-    public ResponseEntity<ApiResult<AgentRunResponse>> run(@RequestBody AgentRunRequest body) {
-        AgentRunResponse data = agentService.runAgent(body.task(), body.imagePath());
-        return ResponseEntity.ok(R.ok(data));
+    @PostMapping(value = "/run", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApiResult<AgentRunResponse>> runJson(@Valid @RequestBody AgentRunRequest body) {
+        return ResponseEntity.ok(R.ok(agentService.runJson(body)));
+    }
+
+    @PostMapping(value = "/run", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResult<AgentRunResponse>> runMultipart(
+            @RequestParam("task") String task,
+            @RequestParam(value = "knowledgeBaseId", required = false) Long knowledgeBaseId,
+            @RequestParam(value = "ragTopK", required = false) Integer ragTopK,
+            @RequestParam(value = "ragSimilarityThreshold", required = false) Double ragSimilarityThreshold,
+            @RequestPart(value = "image", required = false) MultipartFile image) {
+        return ResponseEntity.ok(
+                R.ok(
+                        agentService.runMultipart(
+                                task, knowledgeBaseId, ragTopK, ragSimilarityThreshold, image)));
     }
 
     @GetMapping({"", "/"})

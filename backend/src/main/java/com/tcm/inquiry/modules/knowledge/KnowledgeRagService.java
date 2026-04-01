@@ -38,6 +38,31 @@ public class KnowledgeRagService {
     }
 
     public KnowledgeQueryResponse query(Long knowledgeBaseId, KnowledgeQueryRequest req) {
+        KnowledgeContextBundle bundle = retrieveContext(knowledgeBaseId, req.getMessage(), req.getTopK(), req.getSimilarityThreshold());
+
+        String userPrompt =
+                "参考资料：\n"
+                        + bundle.contextText()
+                        + "\n用户问题：\n"
+                        + req.getMessage().trim()
+                        + "\n请根据资料作答。";
+
+        ChatClient client =
+                ChatClient.builder(chatModel).defaultSystem(KnowledgeRagPrompts.RAG_SYSTEM).build();
+        String answer = client.prompt().user(userPrompt).call().content();
+
+        return new KnowledgeQueryResponse(
+                answer, new ArrayList<>(bundle.sources()), bundle.retrievedChunks());
+    }
+
+    /**
+     * 仅向量检索 + 拼装上下文，不调用大模型（供智能体组合图文任务使用）。
+     */
+    public KnowledgeContextBundle retrieveContext(
+            Long knowledgeBaseId,
+            String queryText,
+            Integer topKOverride,
+            Double similarityThresholdOverride) {
         if (!knowledgeBaseRepository.existsById(knowledgeBaseId)) {
             throw new IllegalArgumentException("knowledge base not found: " + knowledgeBaseId);
         }
@@ -46,17 +71,17 @@ public class KnowledgeRagService {
                 new FilterExpressionBuilder().eq("kb_id", String.valueOf(knowledgeBaseId)).build();
 
         int topK =
-                req.getTopK() != null && req.getTopK() > 0
-                        ? req.getTopK()
+                topKOverride != null && topKOverride > 0
+                        ? topKOverride
                         : knowledgeProperties.getDefaultTopK();
         double th =
-                req.getSimilarityThreshold() != null
-                        ? req.getSimilarityThreshold()
+                similarityThresholdOverride != null
+                        ? similarityThresholdOverride
                         : knowledgeProperties.getDefaultSimilarityThreshold();
 
         SearchRequest.Builder searchBuilder =
                 SearchRequest.builder()
-                        .query(req.getMessage().trim())
+                        .query(queryText.trim())
                         .topK(topK)
                         .filterExpression(kbOnly);
         if (th <= 0) {
@@ -85,18 +110,6 @@ public class KnowledgeRagService {
             ctxText = "（当前知识库中暂无与问题相关的检索片段。）\n";
         }
 
-        String userPrompt =
-                "参考资料：\n"
-                        + ctxText
-                        + "\n用户问题：\n"
-                        + req.getMessage().trim()
-                        + "\n请根据资料作答。";
-
-        ChatClient client =
-                ChatClient.builder(chatModel).defaultSystem(KnowledgeRagPrompts.RAG_SYSTEM).build();
-        String answer = client.prompt().user(userPrompt).call().content();
-
-        return new KnowledgeQueryResponse(
-                answer, new ArrayList<>(sources), hits.size());
+        return new KnowledgeContextBundle(ctxText, new ArrayList<>(sources), hits.size());
     }
 }

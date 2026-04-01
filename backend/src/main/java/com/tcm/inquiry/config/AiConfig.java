@@ -4,6 +4,7 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.ollama.api.OllamaApi;
 import org.springframework.ai.ollama.api.OllamaOptions;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -17,10 +18,11 @@ public class AiConfig {
     public static final String VISION_CHAT_MODEL = "visionChatModel";
 
     @Bean(name = VISION_CHAT_MODEL)
-    public ChatModel visionChatModel(OllamaApi ollamaApi) {
+    public ChatModel visionChatModel(
+            OllamaApi ollamaApi, @Value("${tcm.ollama.vision-model:qwen3-vl:2b}") String visionModel) {
         return OllamaChatModel.builder()
                 .ollamaApi(ollamaApi)
-                .defaultOptions(OllamaOptions.builder().model("qwen3-vl:2b").build())
+                .defaultOptions(OllamaOptions.builder().model(visionModel).build())
                 .build();
     }
 }
