@@ -20,7 +20,7 @@
     <properties>
         <java.version>17</java.version>
         <!-- Spring AI 1.0.x aligns with Spring Boot 3.3+; Ollama integration artifact is spring-ai-starter-model-ollama -->
-        <spring-ai.version>1.0.5</spring-ai.version>
+        <spring-ai.version>1.1.4</spring-ai.version>
     </properties>
 
     <dependencyManagement>
