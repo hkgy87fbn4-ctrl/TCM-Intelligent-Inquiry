@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.tcm.inquiry.common.ApiResult;
 import com.tcm.inquiry.common.R;
@@ -71,6 +72,15 @@ public class LiteratureController {
             @PathVariable("collectionId") String collectionId,
             @Valid @RequestBody LiteratureQueryRequest body) {
         return ResponseEntity.ok(R.ok(literatureRagService.query(collectionId, body)));
+    }
+
+    @PostMapping(
+            value = "/collections/{collectionId}/query/stream",
+            produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter queryStream(
+            @PathVariable("collectionId") String collectionId,
+            @Valid @RequestBody LiteratureQueryRequest body) {
+        return literatureRagService.streamQuery(collectionId, body);
     }
 
     @DeleteMapping("/collections/{collectionId}")

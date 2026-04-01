@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.tcm.inquiry.common.ApiResult;
 import com.tcm.inquiry.common.R;
@@ -89,5 +90,14 @@ public class KnowledgeController {
             @PathVariable("kbId") Long knowledgeBaseId,
             @Valid @RequestBody KnowledgeQueryRequest body) {
         return ResponseEntity.ok(R.ok(knowledgeRagService.query(knowledgeBaseId, body)));
+    }
+
+    /**
+     * 知识库 RAG 流式回答（SSE）：首包 {@code event: meta}，正文增量同问诊 chat，结束 {@code [DONE]}。
+     */
+    @PostMapping(value = "/bases/{kbId}/query/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter queryStream(
+            @PathVariable("kbId") Long knowledgeBaseId, @Valid @RequestBody KnowledgeQueryRequest body) {
+        return knowledgeRagService.streamQuery(knowledgeBaseId, body);
     }
 }
