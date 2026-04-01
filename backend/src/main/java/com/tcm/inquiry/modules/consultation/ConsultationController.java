@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -65,6 +66,12 @@ public class ConsultationController {
     public ResponseEntity<ApiResult<List<ChatMessageView>>> listMessages(
             @PathVariable("sessionId") Long sessionId) {
         return ResponseEntity.ok(R.ok(consultationService.listMessages(sessionId)));
+    }
+
+    @DeleteMapping("/sessions/{sessionId}")
+    public ResponseEntity<ApiResult<Void>> deleteSession(@PathVariable("sessionId") Long sessionId) {
+        consultationService.deleteSession(sessionId);
+        return ResponseEntity.ok(R.ok(null));
     }
 
     /**

@@ -148,8 +148,13 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="ds-page" style="max-width: 45rem">
-    <h2 class="ds-h2">医学文献问答（临时 RAG · Ollama）</h2>
+  <div
+    class="ds-page"
+    style="max-width: 45rem"
+  >
+    <h2 class="ds-h2">
+      医学文献问答（临时 RAG · Ollama）
+    </h2>
     <p
       class="ds-status lit-health"
       :class="
@@ -167,18 +172,42 @@ onMounted(async () => {
     </p>
 
     <section class="ds-card">
-      <h3 class="ds-h3 ds-card__title">临时文献库</h3>
-      <p v-if="collectionId" class="lit-meta">
+      <h3 class="ds-h3 ds-card__title">
+        临时文献库
+      </h3>
+      <p
+        v-if="collectionId"
+        class="lit-meta"
+      >
         当前 collectionId：
         <code class="ds-code">{{ collectionId }}</code>
-        <button type="button" class="ds-btn ds-btn--ghost" @click="newCollection">新建空库（仅前端切换）</button>
-        <button type="button" class="ds-btn ds-btn--danger" @click="purgeCollection">删除服务端整库</button>
+        <button
+          type="button"
+          class="ds-btn ds-btn--ghost"
+          @click="newCollection"
+        >
+          新建空库（仅前端切换）
+        </button>
+        <button
+          type="button"
+          class="ds-btn ds-btn--danger"
+          @click="purgeCollection"
+        >
+          删除服务端整库
+        </button>
       </p>
-      <p v-else class="ds-muted">尚未上传：首次上传会自动分配临时库 ID。</p>
+      <p
+        v-else
+        class="ds-muted"
+      >
+        尚未上传：首次上传会自动分配临时库 ID。
+      </p>
     </section>
 
     <section class="ds-card">
-      <h3 class="ds-h3 ds-card__title">上传文献</h3>
+      <h3 class="ds-h3 ds-card__title">
+        上传文献
+      </h3>
       <div class="ds-row ds-row--center">
         <label class="ds-field">
           分块约长（chunkSize）
@@ -190,17 +219,37 @@ onMounted(async () => {
             min="128"
             max="2048"
             step="64"
-          />
+          >
         </label>
         <label class="ds-file-label">
           选择文件
-          <input type="file" :disabled="uploading" @change="onFileChange" />
+          <input
+            type="file"
+            :disabled="uploading"
+            @change="onFileChange"
+          >
         </label>
       </div>
-      <p v-if="msg" class="ds-msg--success">{{ msg }}</p>
-      <p v-if="loadingFiles" class="ds-muted">加载列表…</p>
-      <ul v-else class="ds-list">
-        <li v-for="f in files" :key="f.fileUuid || f.id">
+      <p
+        v-if="msg"
+        class="ds-msg--success"
+      >
+        {{ msg }}
+      </p>
+      <p
+        v-if="loadingFiles"
+        class="ds-muted"
+      >
+        加载列表…
+      </p>
+      <ul
+        v-else
+        class="ds-list"
+      >
+        <li
+          v-for="f in files"
+          :key="f.fileUuid || f.id"
+        >
           <span>{{ f.originalFilename }}</span>
           <span class="ds-muted">{{ (f.sizeBytes / 1024).toFixed(1) }} KB</span>
           <span class="ds-badge">{{ f.status }}</span>
@@ -213,13 +262,22 @@ onMounted(async () => {
             删除
           </button>
         </li>
-        <li v-if="files.length === 0 && collectionId"><span class="ds-muted">库内暂无文件记录</span></li>
+        <li v-if="files.length === 0 && collectionId">
+          <span class="ds-muted">库内暂无文件记录</span>
+        </li>
       </ul>
     </section>
 
     <section class="ds-card">
-      <h3 class="ds-h3 ds-card__title">文献问答</h3>
-      <textarea v-model="queryText" rows="3" class="ds-textarea" placeholder="基于已上传文献提问…" />
+      <h3 class="ds-h3 ds-card__title">
+        文献问答
+      </h3>
+      <textarea
+        v-model="queryText"
+        rows="3"
+        class="ds-textarea"
+        placeholder="基于已上传文献提问…"
+      />
       <div class="ds-row">
         <label class="ds-field">
           Top-K
@@ -230,7 +288,7 @@ onMounted(async () => {
             inputmode="numeric"
             min="1"
             max="20"
-          />
+          >
         </label>
         <label class="ds-field">
           相似度阈值（0=不过滤）
@@ -242,7 +300,7 @@ onMounted(async () => {
             min="0"
             max="1"
             step="0.05"
-          />
+          >
         </label>
         <button
           type="button"
@@ -253,11 +311,27 @@ onMounted(async () => {
           {{ ragLoading ? '生成中…' : '检索并生成' }}
         </button>
       </div>
-      <p v-if="ragError" class="ds-msg--error">{{ ragError }}</p>
-      <div v-if="ragAnswer" class="ds-answer">
-        <h4 class="ds-h4">回答</h4>
-        <MarkdownContent class="ds-answer__body" :source="ragAnswer" />
-        <p v-if="ragSources.length" class="ds-answer__sources">
+      <p
+        v-if="ragError"
+        class="ds-msg--error"
+      >
+        {{ ragError }}
+      </p>
+      <div
+        v-if="ragAnswer"
+        class="ds-answer"
+      >
+        <h4 class="ds-h4">
+          回答
+        </h4>
+        <MarkdownContent
+          class="ds-answer__body"
+          :source="ragAnswer"
+        />
+        <p
+          v-if="ragSources.length"
+          class="ds-answer__sources"
+        >
           <strong>来源：</strong>{{ ragSources.join('、') }}
         </p>
       </div>

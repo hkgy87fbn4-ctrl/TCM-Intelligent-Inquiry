@@ -11,7 +11,7 @@ An AI-powered Traditional Chinese Medicine (TCM) intelligent inquiry system for 
 ### 阶段一：中医问诊流式对话（已打通）
 
 - **后端**：`POST /api/v1/consultation/chat`（`Content-Type: application/json`，`Accept: text/event-stream`）请求体字段：`sessionId`、`message`、可选 `temperature`、`maxHistoryTurns`。响应为 SSE：`data:` 为增量文本，结束前发送 `data:[DONE]`；流结束后异步写入 `chat_messages`。系统提示词见 `ConsultationPrompts.SYSTEM`。历史：`GET /api/v1/consultation/sessions/{id}/messages`。
-- **前端**：问诊页使用 `useChat` + `openSseStream` 对接上述接口；需本机 **Ollama** 已启动且配置模型可用。
+- **前端**：问诊页使用 `useChat` + `openSseStream`；**历史会话**列表（`GET /sessions`）与切换后拉取消息（`loadHistory`）；`localStorage` 恢复上次会话；可选 **关联知识库** 在本轮流式请求中注入 RAG 摘录（请求体 `knowledgeBaseId` / `ragTopK` 等）。需本机 **Ollama** 已启动且配置模型可用。
 
 ### 阶段二：中医药知识库与全局 RAG（已打通 MVP）
 

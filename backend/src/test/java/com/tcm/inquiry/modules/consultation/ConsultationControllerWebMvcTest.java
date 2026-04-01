@@ -1,5 +1,6 @@
 package com.tcm.inquiry.modules.consultation;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -50,5 +51,14 @@ class ConsultationControllerWebMvcTest {
         mockMvc.perform(get("/api/v1/consultation/sessions"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].id").value(1));
+    }
+
+    @Test
+    void deleteSession() throws Exception {
+        mockMvc.perform(delete("/api/v1/consultation/sessions/5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+
+        org.mockito.Mockito.verify(consultationService).deleteSession(5L);
     }
 }

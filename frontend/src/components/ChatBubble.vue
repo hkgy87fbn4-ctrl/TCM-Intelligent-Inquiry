@@ -21,7 +21,9 @@ const parsed = computed(() =>
     <span class="ds-bubble__meta">{{ role === 'user' ? '我' : '助手' }}</span>
 
     <template v-if="role === 'user'">
-      <p class="ds-bubble__text">{{ content }}</p>
+      <p class="ds-bubble__text">
+        {{ content }}
+      </p>
     </template>
 
     <template v-else-if="parsed">
@@ -35,7 +37,11 @@ const parsed = computed(() =>
         </summary>
         <pre class="ds-think__body">{{ parsed.think }}</pre>
       </details>
-      <MarkdownContent v-if="parsed.rest.trim()" class="ds-bubble__md" :source="parsed.rest" />
+      <MarkdownContent
+        v-if="parsed.rest.trim()"
+        class="ds-bubble__md"
+        :source="parsed.rest"
+      />
       <p
         v-else-if="!parsed.think && !parsed.thinkIncomplete && !parsed.rest.trim()"
         class="ds-bubble__text ds-muted"

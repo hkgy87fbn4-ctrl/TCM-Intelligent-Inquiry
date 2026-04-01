@@ -20,5 +20,12 @@ export default tseslint.config(
     rules: {
       'vue/multi-word-component-names': 'off',
     },
+  },
+  {
+    files: ['src/components/MarkdownContent.vue'],
+    rules: {
+      // v-html is intentional; HTML is sanitized in markdownToSafeHtml (DOMPurify).
+      'vue/no-v-html': 'off',
+    },
   }
 )

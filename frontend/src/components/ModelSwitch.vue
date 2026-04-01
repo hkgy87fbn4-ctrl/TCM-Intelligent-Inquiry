@@ -14,12 +14,28 @@ function pick(m: (typeof options)[number]) {
 
 <template>
   <div class="switch">
-    <button type="button" class="trigger" @click="open = !open">
+    <button
+      type="button"
+      class="trigger"
+      @click="open = !open"
+    >
       模型：{{ model }}
     </button>
-    <ul v-if="open" class="menu">
-      <li v-for="opt in options" :key="opt">
-        <button type="button" class="item" @click="pick(opt)">{{ opt }}</button>
+    <ul
+      v-if="open"
+      class="menu"
+    >
+      <li
+        v-for="opt in options"
+        :key="opt"
+      >
+        <button
+          type="button"
+          class="item"
+          @click="pick(opt)"
+        >
+          {{ opt }}
+        </button>
       </li>
     </ul>
   </div>

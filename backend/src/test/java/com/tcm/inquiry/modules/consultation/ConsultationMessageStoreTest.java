@@ -33,7 +33,7 @@ class ConsultationMessageStoreTest {
     @Test
     void saveTurnPersistsMessageAndTouchesSession() {
         ChatSession session = new ChatSession();
-        session.setTitle("t");
+        session.setTitle("新会话");
         ChatSession saved = chatSessionRepository.save(session);
 
         consultationMessageStore.saveTurn(
@@ -47,5 +47,20 @@ class ConsultationMessageStoreTest {
         ChatSession reloaded =
                 chatSessionRepository.findById(saved.getId()).orElseThrow();
         assertThat(reloaded.getUpdatedAt()).isNotNull();
+        assertThat(reloaded.getTitle()).isEqualTo("hello");
+    }
+
+    @Test
+    void saveTurnDoesNotOverwriteCustomTitle() {
+        ChatSession session = new ChatSession();
+        session.setTitle("已有标题");
+        ChatSession saved = chatSessionRepository.save(session);
+
+        consultationMessageStore.saveTurn(
+                saved.getId(), "next user", "reply", "m", 0.5);
+
+        ChatSession reloaded =
+                chatSessionRepository.findById(saved.getId()).orElseThrow();
+        assertThat(reloaded.getTitle()).isEqualTo("已有标题");
     }
 }

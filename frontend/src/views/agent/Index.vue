@@ -100,8 +100,13 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="ds-page" style="max-width: 45rem">
-    <h2 class="ds-h2">中医智能体</h2>
+  <div
+    class="ds-page"
+    style="max-width: 45rem"
+  >
+    <h2 class="ds-h2">
+      中医智能体
+    </h2>
     <p
       class="ds-status agent-health"
       :class="
@@ -119,14 +124,31 @@ onMounted(async () => {
     </p>
 
     <section class="ds-card">
-      <h3 class="ds-h3 ds-card__title">任务</h3>
-      <textarea v-model="task" rows="4" class="ds-textarea" placeholder="描述要让智能体做什么…" />
+      <h3 class="ds-h3 ds-card__title">
+        任务
+      </h3>
+      <textarea
+        v-model="task"
+        rows="4"
+        class="ds-textarea"
+        placeholder="描述要让智能体做什么…"
+      />
       <div class="ds-row ds-row--top agent-row">
-        <label v-if="bases.length" class="ds-field agent-kb">
+        <label
+          v-if="bases.length"
+          class="ds-field agent-kb"
+        >
           知识库（可选）
-          <select v-model="kbSelection" class="ds-select">
+          <select
+            v-model="kbSelection"
+            class="ds-select"
+          >
             <option value="">不使用知识库</option>
-            <option v-for="b in bases" :key="b.id" :value="String(b.id)">
+            <option
+              v-for="b in bases"
+              :key="b.id"
+              :value="String(b.id)"
+            >
               {{ b.name }} (id={{ b.id }})
             </option>
           </select>
@@ -141,7 +163,7 @@ onMounted(async () => {
               inputmode="numeric"
               min="1"
               max="20"
-            />
+            >
           </label>
           <label class="ds-field">
             相似度阈值
@@ -153,28 +175,52 @@ onMounted(async () => {
               min="0"
               max="1"
               step="0.05"
-            />
+            >
           </label>
         </template>
       </div>
       <div class="ds-row agent-actions">
-        <button type="button" class="ds-btn ds-btn--primary" :disabled="loading" @click="runJsonOnly">
+        <button
+          type="button"
+          class="ds-btn ds-btn--primary"
+          :disabled="loading"
+          @click="runJsonOnly"
+        >
           {{ loading ? '运行中…' : '仅文本运行' }}
         </button>
         <label class="ds-file-label ds-file-label--solid agent-file">
           选择图片并运行（多模态）
-          <input type="file" accept="image/*" :disabled="loading" @change="onImageChange" />
+          <input
+            type="file"
+            accept="image/*"
+            :disabled="loading"
+            @change="onImageChange"
+          >
         </label>
       </div>
-      <p v-if="error" class="ds-msg--error">{{ error }}</p>
-      <div v-if="result" class="ds-answer agent-out">
+      <p
+        v-if="error"
+        class="ds-msg--error"
+      >
+        {{ error }}
+      </p>
+      <div
+        v-if="result"
+        class="ds-answer agent-out"
+      >
         <p class="agent-result-meta">
           <span class="ds-badge">{{ result.mode }}</span>
-          <span v-if="result.knowledgeSources?.length" class="ds-muted agent-src">
+          <span
+            v-if="result.knowledgeSources?.length"
+            class="ds-muted agent-src"
+          >
             知识库来源：{{ result.knowledgeSources.join('、') }}
           </span>
         </p>
-        <MarkdownContent class="agent-body" :source="result.assistant" />
+        <MarkdownContent
+          class="agent-body"
+          :source="result.assistant"
+        />
       </div>
     </section>
   </div>

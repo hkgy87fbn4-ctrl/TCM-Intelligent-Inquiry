@@ -16,6 +16,9 @@ import com.tcm.inquiry.modules.consultation.repository.ChatSessionRepository;
 @Service
 public class ConsultationMessageStore {
 
+    private static final String DEFAULT_SESSION_TITLE = "新会话";
+    private static final int TITLE_MAX_LEN = 30;
+
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
 
@@ -36,6 +39,11 @@ public class ConsultationMessageStore {
         ChatSession session =
                 chatSessionRepository.findById(sessionId).orElseThrow();
 
+        if (DEFAULT_SESSION_TITLE.equals(session.getTitle())
+                && chatMessageRepository.countBySession_Id(sessionId) == 0) {
+            session.setTitle(truncateTitle(userText));
+        }
+
         ChatMessage row = new ChatMessage();
         row.setSession(session);
         row.setUserMessage(userText);
@@ -47,5 +55,16 @@ public class ConsultationMessageStore {
 
         session.setUpdatedAt(Instant.now());
         chatSessionRepository.save(session);
+    }
+
+    private static String truncateTitle(String text) {
+        String t = text.replace('\n', ' ').trim();
+        if (t.isEmpty()) {
+            return DEFAULT_SESSION_TITLE;
+        }
+        if (t.length() <= TITLE_MAX_LEN) {
+            return t;
+        }
+        return t.substring(0, TITLE_MAX_LEN) + "…";
     }
 }

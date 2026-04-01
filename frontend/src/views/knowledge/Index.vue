@@ -153,8 +153,13 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="ds-page" style="max-width: 45rem">
-    <h2 class="ds-h2">中医药知识库（RAG）</h2>
+  <div
+    class="ds-page"
+    style="max-width: 45rem"
+  >
+    <h2 class="ds-h2">
+      中医药知识库（RAG）
+    </h2>
     <p
       class="ds-status kb-health"
       :class="
@@ -169,26 +174,51 @@ onMounted(async () => {
     </p>
 
     <section class="ds-card">
-      <h3 class="ds-h3 ds-card__title">知识库</h3>
+      <h3 class="ds-h3 ds-card__title">
+        知识库
+      </h3>
       <div class="ds-row ds-row--top kb-row">
         <label class="ds-field">
           当前库
-          <select v-model.number="selectedBaseId" class="ds-select">
-            <option v-for="b in bases" :key="b.id" :value="b.id">
+          <select
+            v-model.number="selectedBaseId"
+            class="ds-select"
+          >
+            <option
+              v-for="b in bases"
+              :key="b.id"
+              :value="b.id"
+            >
               {{ b.name }} (id={{ b.id }})
             </option>
           </select>
         </label>
         <div class="kb-create">
-          <input v-model="newBaseName" class="ds-input kb-input" placeholder="新库名称" />
-          <input v-model="newBaseEmbed" class="ds-input kb-input" placeholder="Embedding 模型" />
-          <button type="button" class="ds-btn ds-btn--primary" @click="createBase">创建知识库</button>
+          <input
+            v-model="newBaseName"
+            class="ds-input kb-input"
+            placeholder="新库名称"
+          >
+          <input
+            v-model="newBaseEmbed"
+            class="ds-input kb-input"
+            placeholder="Embedding 模型"
+          >
+          <button
+            type="button"
+            class="ds-btn ds-btn--primary"
+            @click="createBase"
+          >
+            创建知识库
+          </button>
         </div>
       </div>
     </section>
 
     <section class="ds-card">
-      <h3 class="ds-h3 ds-card__title">上传与文档</h3>
+      <h3 class="ds-h3 ds-card__title">
+        上传与文档
+      </h3>
       <p class="ds-hint">
         使用 Apache Tika 解析 PDF/Word/TXT 等；分块大小（token 约估）可调整。
       </p>
@@ -203,7 +233,7 @@ onMounted(async () => {
             min="128"
             max="2048"
             step="64"
-          />
+          >
         </label>
         <label class="ds-file-label">
           选择文件上传
@@ -211,24 +241,55 @@ onMounted(async () => {
             type="file"
             :disabled="uploading || selectedBaseId == null"
             @change="onFileChange"
-          />
+          >
         </label>
       </div>
-      <p v-if="ingestMsg" class="ds-msg--success">{{ ingestMsg }}</p>
-      <p v-if="loadingFiles" class="ds-muted">加载文件列表…</p>
-      <ul v-else class="ds-list">
-        <li v-for="f in files" :key="f.fileUuid">
+      <p
+        v-if="ingestMsg"
+        class="ds-msg--success"
+      >
+        {{ ingestMsg }}
+      </p>
+      <p
+        v-if="loadingFiles"
+        class="ds-muted"
+      >
+        加载文件列表…
+      </p>
+      <ul
+        v-else
+        class="ds-list"
+      >
+        <li
+          v-for="f in files"
+          :key="f.fileUuid"
+        >
           <span>{{ f.originalFilename }}</span>
           <span class="ds-muted">{{ (f.sizeBytes / 1024).toFixed(1) }} KB</span>
-          <button type="button" class="ds-link-danger" @click="removeFile(f.fileUuid)">删除</button>
+          <button
+            type="button"
+            class="ds-link-danger"
+            @click="removeFile(f.fileUuid)"
+          >
+            删除
+          </button>
         </li>
-        <li v-if="files.length === 0"><span class="ds-muted">暂无文件</span></li>
+        <li v-if="files.length === 0">
+          <span class="ds-muted">暂无文件</span>
+        </li>
       </ul>
     </section>
 
     <section class="ds-card">
-      <h3 class="ds-h3 ds-card__title">知识问答</h3>
-      <textarea v-model="queryText" rows="3" class="ds-textarea" placeholder="输入问题…" />
+      <h3 class="ds-h3 ds-card__title">
+        知识问答
+      </h3>
+      <textarea
+        v-model="queryText"
+        rows="3"
+        class="ds-textarea"
+        placeholder="输入问题…"
+      />
       <div class="ds-row">
         <label class="ds-field">
           Top-K
@@ -239,17 +300,38 @@ onMounted(async () => {
             inputmode="numeric"
             min="1"
             max="20"
-          />
+          >
         </label>
-        <button type="button" class="ds-btn ds-btn--primary" :disabled="ragLoading" @click="runQuery">
+        <button
+          type="button"
+          class="ds-btn ds-btn--primary"
+          :disabled="ragLoading"
+          @click="runQuery"
+        >
           {{ ragLoading ? '生成中…' : '检索并生成' }}
         </button>
       </div>
-      <p v-if="ragError" class="ds-msg--error">{{ ragError }}</p>
-      <div v-if="ragAnswer" class="ds-answer">
-        <h4 class="ds-h4">回答</h4>
-        <MarkdownContent class="ds-answer__body" :source="ragAnswer" />
-        <p v-if="ragSources.length" class="ds-answer__sources">
+      <p
+        v-if="ragError"
+        class="ds-msg--error"
+      >
+        {{ ragError }}
+      </p>
+      <div
+        v-if="ragAnswer"
+        class="ds-answer"
+      >
+        <h4 class="ds-h4">
+          回答
+        </h4>
+        <MarkdownContent
+          class="ds-answer__body"
+          :source="ragAnswer"
+        />
+        <p
+          v-if="ragSources.length"
+          class="ds-answer__sources"
+        >
           <strong>来源文件：</strong>{{ ragSources.join('、') }}
         </p>
       </div>

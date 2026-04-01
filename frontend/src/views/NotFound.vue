@@ -4,9 +4,18 @@ import { RouterLink } from 'vue-router'
 
 <template>
   <div class="ds-not-found">
-    <p class="ds-not-found-title">页面不存在</p>
-    <p class="ds-not-found-hint">链接可能有误，或页面已被移动。</p>
-    <RouterLink to="/consultation" class="ds-not-found-link">返回问诊</RouterLink>
+    <p class="ds-not-found-title">
+      页面不存在
+    </p>
+    <p class="ds-not-found-hint">
+      链接可能有误，或页面已被移动。
+    </p>
+    <RouterLink
+      to="/consultation"
+      class="ds-not-found-link"
+    >
+      返回问诊
+    </RouterLink>
   </div>
 </template>
 

@@ -21,6 +21,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.tcm.inquiry.config.TcmApiProperties;
 import com.tcm.inquiry.modules.consultation.dto.ConsultationChatRequest;
+import com.tcm.inquiry.modules.knowledge.KnowledgeContextBundle;
+import com.tcm.inquiry.modules.knowledge.KnowledgeRagService;
 import com.tcm.inquiry.modules.consultation.entity.ChatMessage;
 import com.tcm.inquiry.modules.consultation.repository.ChatMessageRepository;
 import com.tcm.inquiry.modules.consultation.repository.ChatSessionRepository;
@@ -41,6 +43,7 @@ public class ConsultationChatService {
     private final ConsultationMessageStore consultationMessageStore;
     private final Executor sseAsyncExecutor;
     private final TcmApiProperties apiProperties;
+    private final KnowledgeRagService knowledgeRagService;
 
     @Value("${spring.ai.ollama.chat.options.model:deepseek-r1:8b}")
     private String defaultChatModelName;
@@ -51,13 +54,15 @@ public class ConsultationChatService {
             ChatMessageRepository chatMessageRepository,
             ConsultationMessageStore consultationMessageStore,
             @Qualifier("sseAsyncExecutor") Executor sseAsyncExecutor,
-            TcmApiProperties apiProperties) {
+            TcmApiProperties apiProperties,
+            KnowledgeRagService knowledgeRagService) {
         this.chatModel = chatModel;
         this.chatSessionRepository = chatSessionRepository;
         this.chatMessageRepository = chatMessageRepository;
         this.consultationMessageStore = consultationMessageStore;
         this.sseAsyncExecutor = sseAsyncExecutor;
         this.apiProperties = apiProperties;
+        this.knowledgeRagService = knowledgeRagService;
     }
 
     /**
@@ -78,6 +83,7 @@ public class ConsultationChatService {
 
         List<Message> historyMessages = buildHistoryMessages(req.getSessionId(), maxTurns);
         String userInput = req.getMessage().trim();
+        String modelUserInput = augmentWithKnowledgeBaseIfPresent(req, userInput);
 
         ChatClient chatClient =
                 ChatClient.builder(chatModel).defaultSystem(ConsultationPrompts.SYSTEM).build();
@@ -90,7 +96,7 @@ public class ConsultationChatService {
                                         .temperature(temperature)
                                         .build())
                         .messages(historyMessages)
-                        .user(userInput)
+                        .user(modelUserInput)
                         .stream();
 
         StringBuilder assistantAcc = new StringBuilder();
@@ -178,6 +184,22 @@ public class ConsultationChatService {
             messages.add(new AssistantMessage(row.getAssistantMessage()));
         }
         return messages;
+    }
+
+    private String augmentWithKnowledgeBaseIfPresent(ConsultationChatRequest req, String userInput) {
+        if (req.getKnowledgeBaseId() == null) {
+            return userInput;
+        }
+        KnowledgeContextBundle bundle =
+                knowledgeRagService.retrieveContext(
+                        req.getKnowledgeBaseId(),
+                        userInput,
+                        req.getRagTopK(),
+                        req.getRagSimilarityThreshold());
+        return "【知识库摘录】\n"
+                + bundle.contextText()
+                + "\n\n【用户主诉】\n"
+                + userInput;
     }
 
     private String streamErrorMessage(Throwable ex) {

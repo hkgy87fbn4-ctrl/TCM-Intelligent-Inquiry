@@ -10,5 +10,8 @@ const html = computed(() => markdownToSafeHtml(props.source))
 </script>
 
 <template>
-  <div class="ds-markdown" v-html="html" />
+  <div
+    class="ds-markdown"
+    v-html="html"
+  />
 </template>

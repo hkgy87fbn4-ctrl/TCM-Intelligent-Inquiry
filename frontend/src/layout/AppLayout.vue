@@ -23,10 +23,20 @@ const links = [
 
 <template>
   <div class="ds-shell">
-    <a href="#main-content" class="ds-skip-link" @click="skipToMain">跳到主内容</a>
-    <aside class="ds-sidebar" aria-label="主导航">
+    <a
+      href="#main-content"
+      class="ds-skip-link"
+      @click="skipToMain"
+    >跳到主内容</a>
+    <aside
+      class="ds-sidebar"
+      aria-label="主导航"
+    >
       <div class="ds-brand-row">
-        <div class="ds-brand-mark" aria-hidden="true">
+        <div
+          class="ds-brand-mark"
+          aria-hidden="true"
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -48,7 +58,10 @@ const links = [
           </h1>
         </div>
       </div>
-      <nav class="ds-nav" aria-label="功能模块">
+      <nav
+        class="ds-nav"
+        aria-label="功能模块"
+      >
         <RouterLink
           v-for="item in links"
           :key="item.to"
@@ -56,7 +69,10 @@ const links = [
           class="ds-nav-link"
           active-class="active"
         >
-          <span class="ds-nav-icon" aria-hidden="true">
+          <span
+            class="ds-nav-icon"
+            aria-hidden="true"
+          >
             <!-- Heroicons-style 24×24，currentColor 继承 -->
             <svg
               v-if="item.icon === 'consult'"
@@ -127,7 +143,11 @@ const links = [
         </RouterLink>
       </nav>
     </aside>
-    <main id="main-content" class="ds-main" tabindex="-1">
+    <main
+      id="main-content"
+      class="ds-main"
+      tabindex="-1"
+    >
       <div class="ds-main-body">
         <RouterView />
       </div>

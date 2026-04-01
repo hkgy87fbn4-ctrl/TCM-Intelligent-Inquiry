@@ -55,6 +55,15 @@ public class ConsultationService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
+    public void deleteSession(Long sessionId) {
+        if (!chatSessionRepository.existsById(sessionId)) {
+            throw new IllegalArgumentException("session not found: " + sessionId);
+        }
+        chatMessageRepository.deleteAllBySession_Id(sessionId);
+        chatSessionRepository.deleteById(sessionId);
+    }
+
     private ChatMessageView toMessageView(ChatMessage m) {
         return new ChatMessageView(
                 m.getId(),

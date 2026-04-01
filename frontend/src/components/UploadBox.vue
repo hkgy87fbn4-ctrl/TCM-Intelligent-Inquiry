@@ -26,8 +26,14 @@ function openPicker() {
       class="hidden"
       multiple
       @change="onChange"
-    />
-    <button type="button" class="btn" @click="openPicker">选择文件</button>
+    >
+    <button
+      type="button"
+      class="btn"
+      @click="openPicker"
+    >
+      选择文件
+    </button>
     <span class="hint">支持多文件上传（占位）</span>
   </div>
 </template>
