@@ -19,9 +19,11 @@ import com.tcm.inquiry.modules.consultation.service.ConsultationMessageStore;
 
 @DataJpaTest(
         properties = {
-            "spring.datasource.url=jdbc:sqlite::memory:",
-            "spring.datasource.driver-class-name=org.sqlite.JDBC",
-            "spring.jpa.database-platform=org.hibernate.community.dialect.SQLiteDialect",
+            "spring.datasource.url=jdbc:h2:mem:consultation_msg_test;MODE=MySQL;DB_CLOSE_DELAY=-1",
+            "spring.datasource.driver-class-name=org.h2.Driver",
+            "spring.datasource.username=sa",
+            "spring.datasource.password=",
+            "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
             "spring.jpa.hibernate.ddl-auto=create-drop",
         })
 @Import({ConsultationJpaConfig.class, ConsultationMessageStore.class})

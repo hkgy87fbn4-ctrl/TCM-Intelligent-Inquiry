@@ -229,10 +229,7 @@ function onAttachChange(e: Event) {
   el.value = ''
 }
 
-function buildOmniPayload(
-  visionImage: File | null,
-  skipAppendUser = false
-): OmniSendPayload {
+function buildOmniPayload(skipAppendUser = false): OmniSendPayload {
   const m = mode.value
   const lit =
     literatureCollectionId.value.trim() === ''
@@ -246,7 +243,7 @@ function buildOmniPayload(
     visionKbId: visionKnowledgeBaseId.value,
     literatureTopK: literatureTopK.value,
     literatureThreshold: literatureThreshold.value,
-    visionImage: m === 'vision' ? visionImage : null,
+    visionImages: m === 'vision' ? [...pendingImages.value] : [],
     temperature: temperature.value,
     maxHistoryTurns: maxHistoryTurns.value,
     ragTopK: ragTopK.value,
@@ -261,15 +258,14 @@ async function onSend() {
   if (!text || loading.value) return
 
   if (mode.value === 'vision') {
-    const first = pendingImages.value[0] ?? null
     input.value = ''
-    await sendOmni(text, buildOmniPayload(first, false))
+    await sendOmni(text, buildOmniPayload(false))
     if (!error.value) clearPendingImages()
     return
   }
 
   input.value = ''
-  await sendOmni(text, buildOmniPayload(null, false))
+  await sendOmni(text, buildOmniPayload(false))
 }
 
 async function onRegenerateAssistant() {
@@ -282,7 +278,7 @@ async function onRegenerateAssistant() {
   messages.value = arr.slice(0, -1)
   const text = prev.content.trim()
   if (!text) return
-  await sendOmni(text, buildOmniPayload(null, true))
+  await sendOmni(text, buildOmniPayload(true))
 }
 
 function canSend() {

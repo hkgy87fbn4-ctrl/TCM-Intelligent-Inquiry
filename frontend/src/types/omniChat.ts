@@ -10,7 +10,8 @@ export type OmniSendPayload = {
   visionKbId: number | null
   literatureTopK: number
   literatureThreshold: number
-  visionImage: File | null
+  /** 视觉模式附图（顺序会传给模型；可为多张） */
+  visionImages: File[]
   temperature: number
   maxHistoryTurns: number
   ragTopK: number

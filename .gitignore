@@ -27,3 +27,10 @@ replay_pid*
 backend/target/
 backend/data/
 backend/.mvn/wrapper/maven-wrapper.jar
+# H2 集成测试文件（ci profile）
+backend/target/tcm-ci-ollama-it.*
+
+# 本地环境与密钥（勿入库）
+.env
+.env.*
+!.env.example

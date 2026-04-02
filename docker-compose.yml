@@ -1,17 +1,62 @@
-# 示例编排：后端容器 + 数据卷。Ollama 需单独安装或在宿主机运行（默认连接 localhost:11434 在容器内不可用，请设置 SPRING_AI_OLLAMA_BASE_URL 指向可解析的主机名）。
+# 可选编排：不依赖 Docker 也可在本机自行安装 MySQL + Redis Stack + Ollama 后直接 ./mvnw spring-boot:run
+# 企业级本地/演示：MySQL + Redis Stack + 后端（Ollama 需单独在本机或他机运行）
 services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-tcm_inquiry}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - tcm-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_PASSWORD:-root}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 25s
+
+  # RediSearch / 向量索引（需 Redis Stack 镜像，非纯 OSS redis）
+  redis-stack:
+    image: redis/redis-stack-server:7.4.0-v0
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - tcm-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 4s
+      timeout: 3s
+      retries: 10
+
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
     ports:
-      - "8080:8080"
+      - "${BACKEND_PORT:-8080}:8080"
     environment:
       SPRING_PROFILES_ACTIVE: prod
       TCM_API_EXPOSE_ERROR_DETAILS: "false"
-      # 示例：Ollama 在宿主机时（Linux 可尝试 host.docker.internal，视 Docker 版本而定）
-      # SPRING_AI_OLLAMA_BASE_URL: http://host.docker.internal:11434
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-tcm_inquiry}
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
+      REDIS_HOST: redis-stack
+      REDIS_PORT: "6379"
+      # Ollama 在容器内不可用时，请改为可解析地址，例如 host.docker.internal
+      SPRING_AI_OLLAMA_BASE_URL: ${SPRING_AI_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis-stack:
+        condition: service_healthy
     volumes:
-      - tcm-backend-data:/app/data
+      - tcm-backend-files:/app/data
+
 volumes:
-  tcm-backend-data:
+  tcm-mysql-data:
+  tcm-redis-data:
+  tcm-backend-files:

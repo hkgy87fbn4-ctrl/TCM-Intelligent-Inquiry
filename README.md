@@ -3,9 +3,11 @@ An AI-powered Traditional Chinese Medicine (TCM) intelligent inquiry system for 
 
 ## Development
 
-- **Backend (Spring Boot 3.3+, Java 17+)**: `cd backend && ./mvnw -q -DskipTests compile` (or `mvn -q -f backend/pom.xml -DskipTests compile`). Run: `./mvnw spring-boot:run` (port **8080**). SQLite file: `backend/data/tcm-inquiry.db` (directory created on startup). **Ollama** base URL defaults to `http://localhost:11434` in `backend/src/main/resources/application.yml`.
-- **Spring AI / Ollama**: Spring AI **1.0.x** uses the dependency `spring-ai-starter-model-ollama` (managed by `spring-ai-bom`; replaces the older `spring-ai-ollama-spring-boot-starter` milestone artifact).
-- **Frontend (Vue 3 + Vite)**: `cd frontend && npm install && npm run dev`。Dev server 将 `/api` 代理到 `http://localhost:8080`。质量检查：`npm run lint`、`npm test`、`npm run build`。
+**本地必需中间件（可不使用 Docker）**：本机安装并启动 **MySQL 8**（建库 `tcm_inquiry` 或依赖 URL 中 `createDatabaseIfNotExist`）、**Redis Stack**（带 RediSearch，用于向量索引；纯 `redis` OSS 镜像不足以支撑 Spring AI `RedisVectorStore`）。再启动 **Ollama**（默认 `http://localhost:11434`）。后端会把上传文件放在 `backend/data/kb-files` 等目录（启动时创建）。
+
+- **Backend (Spring Boot 3.3+, Java 17+)**: `cd backend && ./mvnw -q -DskipTests compile`. Run: `./mvnw spring-boot:run`（默认端口 **8080**）。通过环境变量配置 MySQL / Redis（见下表）；不要使用 SQLite。
+- **Spring AI / Ollama**: 使用 `spring-ai-starter-model-ollama` + `spring-ai-starter-vector-store-redis`（由 `spring-ai-bom` 管版本）。
+- **Frontend (Vue 3 + Vite)**: `cd frontend && npm install && npm run dev`。开发态将 `/api` 代理到 `http://127.0.0.1:8080`。质量检查：`npm run lint`、`npm test`、`npm run build`。
 - **并行开发（多 Composer / fast）**：`backend/pom.xml` 与主 `application.yml` 仅由 **WS1（backend-platform）** 修改；业务仅限各自包：`modules/consultation|knowledge|literature|agent`、`frontend/`。各模块若新增 JPA 实体，须在本包内增加 `*JpaConfig`（`@EntityScan` + `@EnableJpaRepositories`），与咨询/知识/文献现状一致。
 
 ### 阶段一：中医问诊流式对话（已打通）
@@ -15,7 +17,7 @@ An AI-powered Traditional Chinese Medicine (TCM) intelligent inquiry system for 
 
 ### 阶段二：中医药知识库与全局 RAG（已打通 MVP）
 
-- **依赖**：`spring-ai-tika-document-reader`（PDF/Word/TXT 等经 Tika 抽取文本）、既有 `SimpleVectorStore` + Ollama `EmbeddingModel`（默认 `bge-m3:latest`）。
+- **依赖**：`spring-ai-tika-document-reader`（PDF/Word/TXT 等经 Tika 抽取文本）、**Redis Stack** 上的 `RedisVectorStore` + Ollama `EmbeddingModel`（默认 `bge-m3:latest`）。单元测试 / `ci` profile 仍可 fallback 到内存 `SimpleVectorStore`。
 - **元数据**：向量文档带 `kb_id`、`file_id`、`source`（文件名），检索与删除按 `kb_id` / `file_id` 过滤。
 - **接口**（均前缀 `/api/v1/knowledge`）：
   - `POST /bases` 创建知识库；`GET /bases` 列表；
@@ -34,8 +36,10 @@ An AI-powered Traditional Chinese Medicine (TCM) intelligent inquiry system for 
 | `spring.profiles.active` | 生产建议 `prod`，加载 [backend/src/main/resources/application-prod.yml](backend/src/main/resources/application-prod.yml) 示例 |
 | `tcm.api.expose-error-details` | `false` 时向客户端隐藏未处理异常的内部详情（对应环境变量 `TCM_API_EXPOSE_ERROR_DETAILS`） |
 | `tcm.api.cors-allowed-origin-patterns` | CORS 来源列表；生产勿长期使用 `*` |
-| `spring.ai.ollama.base-url` | Ollama 地址（如 `http://127.0.0.1:11434`）；环境变量 `SPRING_AI_OLLAMA_BASE_URL` |
-| `spring.datasource.url` | SQLite JDBC URL（默认 `jdbc:sqlite:file:./data/tcm-inquiry.db`） |
+| `spring.ai.ollama.base-url` | Ollama 地址；环境变量 `SPRING_AI_OLLAMA_BASE_URL` |
+| `MYSQL_HOST` / `MYSQL_PORT` / `MYSQL_DATABASE` / `MYSQL_USER` / `MYSQL_PASSWORD` | JDBC 由 `application.yml` 组装为 MySQL 连接（默认库名 `tcm_inquiry`） |
+| `REDIS_HOST` / `REDIS_PORT` / `REDIS_USERNAME` / `REDIS_PASSWORD` | Redis Stack 连接，供向量检索 |
+| `spring.ai.vectorstore.redis.*` | 索引名、前缀、`initialize-schema` 等，见 `application.yml` |
 
 ### 前端（Vite 构建 / 开发）
 
@@ -45,18 +49,11 @@ An AI-powered Traditional Chinese Medicine (TCM) intelligent inquiry system for 
 
 生产环境通常由 Nginx/Caddy 将 `/api` 反向代理到后端，静态资源指向 `frontend` 的 `dist/`。
 
-### 容器示例
+### 可选：Docker 编排
 
-自仓库根目录：
+若不希望通过本机包管理安装 MySQL/Redis，可使用仓库根目录 [docker-compose.yml](docker-compose.yml)（`docker compose up`）。**日常开发不强制 Docker**：同样可在本机直接跑中间件。
 
-```bash
-docker compose build
-docker compose up -d
-```
-
-详见 [docker-compose.yml](docker-compose.yml) 注释（容器内访问 Ollama 需设置正确的 `SPRING_AI_OLLAMA_BASE_URL`）。
-
-镜像构建：[backend/Dockerfile](backend/Dockerfile)。
+镜像构建参考：[backend/Dockerfile](backend/Dockerfile)。
 
 ## 安全与贡献
 

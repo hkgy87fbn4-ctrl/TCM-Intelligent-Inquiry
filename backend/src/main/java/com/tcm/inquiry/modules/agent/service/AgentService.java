@@ -1,7 +1,9 @@
 package com.tcm.inquiry.modules.agent.service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -48,7 +50,12 @@ public class AgentService {
         if (req == null || !StringUtils.hasText(req.task())) {
             throw new IllegalArgumentException("task is required");
         }
-        return run(req.task(), req.knowledgeBaseId(), req.ragTopK(), req.ragSimilarityThreshold(), null);
+        return run(
+                req.task(),
+                req.knowledgeBaseId(),
+                req.ragTopK(),
+                req.ragSimilarityThreshold(),
+                List.of());
     }
 
     public AgentRunResponse runMultipart(
@@ -56,11 +63,18 @@ public class AgentService {
             Long knowledgeBaseId,
             Integer ragTopK,
             Double ragSimilarityThreshold,
-            MultipartFile image) {
+            MultipartFile[] imageParts) {
         if (!StringUtils.hasText(task)) {
             throw new IllegalArgumentException("task is required");
         }
-        return run(task.trim(), knowledgeBaseId, ragTopK, ragSimilarityThreshold, image);
+        List<MultipartFile> images =
+                imageParts == null
+                        ? List.of()
+                        : Arrays.stream(imageParts)
+                                .filter(Objects::nonNull)
+                                .filter(f -> !f.isEmpty())
+                                .toList();
+        return run(task.trim(), knowledgeBaseId, ragTopK, ragSimilarityThreshold, images);
     }
 
     private AgentRunResponse run(
@@ -68,7 +82,7 @@ public class AgentService {
             Long knowledgeBaseId,
             Integer ragTopK,
             Double ragSimilarityThreshold,
-            MultipartFile image) {
+            List<MultipartFile> images) {
 
         var appCfg = agentAppConfigService.getOrCreateEntity();
         String textSystem =
@@ -98,19 +112,22 @@ public class AgentService {
                             + task;
         }
 
-        boolean hasImage = image != null && !image.isEmpty();
+        boolean hasImage = images != null && !images.isEmpty();
         if (hasImage) {
-            String mime =
-                    image.getContentType() != null && !image.getContentType().isBlank()
-                            ? image.getContentType()
-                            : "image/jpeg";
-            Media media =
-                    Media.builder()
-                            .mimeType(MimeTypeUtils.parseMimeType(mime))
-                            .data(image.getResource())
-                            .build();
+            List<Media> medias = new ArrayList<>(images.size());
+            for (MultipartFile image : images) {
+                String mime =
+                        image.getContentType() != null && !image.getContentType().isBlank()
+                                ? image.getContentType()
+                                : "image/jpeg";
+                medias.add(
+                        Media.builder()
+                                .mimeType(MimeTypeUtils.parseMimeType(mime))
+                                .data(image.getResource())
+                                .build());
+            }
             UserMessage message =
-                    UserMessage.builder().text(augmented).media(media).build();
+                    UserMessage.builder().text(augmented).media(medias).build();
 
             ChatClient client =
                     ChatClient.builder(visionChatModel).defaultSystem(visionSystem).build();

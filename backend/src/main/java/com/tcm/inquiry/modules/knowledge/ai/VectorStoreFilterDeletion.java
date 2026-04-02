@@ -10,8 +10,9 @@ import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.stereotype.Component;
 
 /**
- * SimpleVectorStore 不支持 {@link VectorStore#delete(Filter.Expression)}，通过先按 metadata
- * 过滤做相似度检索（query 仅占位）再按 id 批量删除。
+ * 部分 VectorStore 实现未实现 {@link VectorStore#delete(Filter.Expression)}；
+ * 此处统一策略：先按 metadata 过滤做相似度检索（query 仅占位）再按文档 id 批量删除。
+ * Redis Stack 实现虽可能支持表达式删除，仍走此路径以保持行为一致、便于单测使用 SimpleVectorStore。
  */
 @Component
 public class VectorStoreFilterDeletion {

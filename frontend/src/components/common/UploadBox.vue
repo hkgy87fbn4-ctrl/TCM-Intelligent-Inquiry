@@ -34,7 +34,7 @@ function openPicker() {
     >
       选择文件
     </button>
-    <span class="hint">支持多文件上传（占位）</span>
+    <span class="hint">支持一次选择多个文件（由页面依次提交后端）</span>
   </div>
 </template>
 

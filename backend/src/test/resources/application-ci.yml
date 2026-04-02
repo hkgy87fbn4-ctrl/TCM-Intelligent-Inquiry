@@ -1,10 +1,14 @@
-# 在 CI 或本机执行 Ollama 真机集成测试时使用：-Dspring.profiles.active=ci 且设置环境变量 OLLAMA_LIVE=true
+# Ollama 真机集成测试（@ActiveProfiles("ci")）：H2 文件库 + 内存向量；不依赖 MySQL/Redis
 spring:
   main:
     banner-mode: "off"
   datasource:
-    url: jdbc:sqlite:file:./target/tcm-ci-ollama-it.db
+    url: jdbc:h2:file:./target/tcm-ci-ollama-it;MODE=MySQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
   jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
       ddl-auto: create-drop
   ai:

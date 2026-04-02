@@ -86,23 +86,45 @@ async function loadFiles() {
 
 async function onFileChange(e: Event) {
   const input = e.target as HTMLInputElement
-  const f = input.files?.[0]
+  const list = input.files
   input.value = ''
-  if (!f || selectedBaseId.value == null) return
+  if (!list?.length || selectedBaseId.value == null) return
   uploading.value = true
   ingestMsg.value = ''
+  const total = list.length
+  const errors: string[] = []
+  let ok = 0
   try {
-    const fd = new FormData()
-    fd.append('file', f)
-    if (chunkSize.value > 32) {
-      fd.append('chunkSize', String(chunkSize.value))
+    for (let i = 0; i < total; i++) {
+      const f = list[i]!
+      if (total > 1) {
+        ingestMsg.value = `上传中 ${i + 1}/${total}：${f.name}…`
+      }
+      try {
+        const fd = new FormData()
+        fd.append('file', f)
+        if (chunkSize.value > 32) {
+          fd.append('chunkSize', String(chunkSize.value))
+        }
+        const { data } = await uploadKnowledgeDocument(selectedBaseId.value, fd)
+        if (data.code !== 0) throw new Error(data.message)
+        ok++
+      } catch (err) {
+        errors.push(`${f.name}：${getErrorMessage(err)}`)
+      }
     }
-    const { data } = await uploadKnowledgeDocument(selectedBaseId.value, fd)
-    if (data.code !== 0) throw new Error(data.message)
-    ingestMsg.value = `已入库：${data.data?.originalFilename ?? ''}`
     await loadFiles()
-  } catch (e) {
-    ingestMsg.value = getErrorMessage(e)
+    if (errors.length === 0) {
+      ingestMsg.value =
+        total === 1 && list[0]
+          ? `已入库：${list[0].name}`
+          : `已依次入库 ${ok} 个文件`
+    } else {
+      ingestMsg.value =
+        ok > 0
+          ? `部分失败（成功 ${ok}/${total}）\n${errors.join('\n')}`
+          : errors.join('\n')
+    }
   } finally {
     uploading.value = false
   }
@@ -204,7 +226,7 @@ onMounted(async () => {
         上传与文档列表
       </h3>
       <p class="ds-hint">
-        使用 Apache Tika 解析 PDF/Word/TXT 等；分块约长可调整。删除会移除向量切片，需重新上传才能再次检索。
+        使用 Apache Tika 解析 PDF/Word/TXT 等；可多选文件依次入库。分块约长可调整。删除会移除向量切片，需重新上传才能再次检索。
       </p>
       <div class="ds-row ds-row--center kb-upload-row">
         <label class="ds-field kb-field-inline">
@@ -223,6 +245,7 @@ onMounted(async () => {
           选择文件上传
           <input
             type="file"
+            multiple
             :disabled="uploading || selectedBaseId == null"
             @change="onFileChange"
           >

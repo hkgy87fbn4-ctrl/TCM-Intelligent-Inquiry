@@ -62,11 +62,11 @@ public class AgentController {
             @RequestParam(value = "knowledgeBaseId", required = false) Long knowledgeBaseId,
             @RequestParam(value = "ragTopK", required = false) Integer ragTopK,
             @RequestParam(value = "ragSimilarityThreshold", required = false) Double ragSimilarityThreshold,
-            @RequestPart(value = "image", required = false) MultipartFile image) {
+            @RequestPart(value = "image", required = false) MultipartFile[] imageParts) {
         return ResponseEntity.ok(
                 R.ok(
                         agentService.runMultipart(
-                                task, knowledgeBaseId, ragTopK, ragSimilarityThreshold, image)));
+                                task, knowledgeBaseId, ragTopK, ragSimilarityThreshold, imageParts)));
     }
 
     @GetMapping({"", "/"})

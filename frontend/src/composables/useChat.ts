@@ -273,10 +273,11 @@ export function useChat() {
 
   /**
    * 视觉智能体：POST /v1/agent/run（多模态或纯文本），非 SSE；回复写入本会话消息列表。
+   * 多张图片会以同名 `image` 字段多次提交，由后端一并送入视觉模型。
    */
   async function sendVisionAgent(
     userText: string,
-    image: File | null,
+    images: File[],
     opts?: Pick<
       SendOptions,
       | 'scrollRoot'
@@ -294,8 +295,9 @@ export function useChat() {
 
     error.value = null
     ragMeta.value = null
+    const names = images.map((f) => f.name).join('、')
     const userLabel =
-      image != null ? `${text}\n\n（附图：${image.name}）` : text
+      images.length > 0 ? `${text}\n\n（附图${images.length}张：${names}）` : text
     if (!opts?.skipAppendUser) {
       messages.value = [...messages.value, { role: 'user', content: userLabel }]
     }
@@ -304,10 +306,12 @@ export function useChat() {
 
     try {
       let data: ApiResult<AgentRunResponse>
-      if (image != null) {
+      if (images.length > 0) {
         const fd = new FormData()
         fd.append('task', text)
-        fd.append('image', image)
+        for (const im of images) {
+          fd.append('image', im)
+        }
         const kb = opts?.knowledgeBaseId
         if (kb != null) {
           fd.append('knowledgeBaseId', String(kb))
@@ -368,8 +372,7 @@ export function useChat() {
     if (p.mode === 'vision') {
       const kb =
         p.visionUseKb && p.visionKbId != null ? p.visionKbId : null
-      const img = p.visionImage
-      return sendVisionAgent(userText, img, {
+      return sendVisionAgent(userText, p.visionImages ?? [], {
         scrollRoot: p.scrollRoot,
         knowledgeBaseId: kb,
         ragTopK: p.ragTopK,

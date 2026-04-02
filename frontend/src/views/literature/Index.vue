@@ -53,30 +53,54 @@ watch(collectionId, () => {
 
 async function onFileChange(e: Event) {
   const input = e.target as HTMLInputElement
-  const f = input.files?.[0]
+  const list = input.files
   input.value = ''
-  if (!f) return
+  if (!list?.length) return
   uploading.value = true
   msg.value = ''
+  const total = list.length
+  let currentColl = collectionId.value
+  const errors: string[] = []
+  let ok = 0
   try {
-    const fd = new FormData()
-    fd.append('file', f)
-    if (collectionId.value) {
-      fd.append('collectionId', collectionId.value)
-    }
-    if (chunkSize.value > 32) {
-      fd.append('chunkSize', String(chunkSize.value))
-    }
-    const { data } = await uploadLiteratureFile(fd)
-    if (data.code !== 0) throw new Error(data.message)
-    const row = data.data
-    if (row) {
-      collectionId.value = row.tempCollectionId
-      msg.value = `已解析入库：${row.originalFilename}`
+    for (let i = 0; i < total; i++) {
+      const f = list[i]!
+      if (total > 1) {
+        msg.value = `上传中 ${i + 1}/${total}：${f.name}…`
+      }
+      try {
+        const fd = new FormData()
+        fd.append('file', f)
+        if (currentColl) {
+          fd.append('collectionId', currentColl)
+        }
+        if (chunkSize.value > 32) {
+          fd.append('chunkSize', String(chunkSize.value))
+        }
+        const { data } = await uploadLiteratureFile(fd)
+        if (data.code !== 0) throw new Error(data.message)
+        const row = data.data
+        if (row?.tempCollectionId) {
+          currentColl = row.tempCollectionId
+          collectionId.value = currentColl
+        }
+        ok++
+      } catch (err) {
+        errors.push(`${f.name}：${getErrorMessage(err)}`)
+      }
     }
     await loadFiles()
-  } catch (e) {
-    msg.value = getErrorMessage(e)
+    if (errors.length === 0) {
+      msg.value =
+        total === 1 && list[0]
+          ? `已解析入库：${list[0].name}`
+          : `已依次入库 ${ok} 个文件`
+    } else {
+      msg.value =
+        ok > 0
+          ? `部分失败（成功 ${ok}/${total}）\n${errors.join('\n')}`
+          : errors.join('\n')
+    }
   } finally {
     uploading.value = false
   }
@@ -177,6 +201,9 @@ onMounted(async () => {
       <h3 class="ds-h3 ds-card__title">
         上传文献
       </h3>
+      <p class="ds-hint lit-upload-hint">
+        可多选文件依次解析；同一批上传会共享当前临时库 ID（首批会自动建库）。
+      </p>
       <div class="ds-row ds-row--center lit-upload-row">
         <label class="ds-field lit-field-inline">
           分块约长（chunkSize）
@@ -194,6 +221,7 @@ onMounted(async () => {
           选择文件
           <input
             type="file"
+            multiple
             :disabled="uploading"
             @change="onFileChange"
           >
