@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import { silentAxiosConfig } from '@/api/core/client'
 import { getErrorMessage } from '@/api/core/errors'
+import { validateIngestChunkParams } from '@/utils/chunkUploadParams'
 import DsSelect from '@/components/common/DsSelect.vue'
 import type { DsSelectOption } from '@/components/common/DsSelect.vue'
 import {
@@ -62,17 +64,21 @@ async function loadBases() {
 
 async function createBase() {
   ingestMsg.value = ''
-  const { data } = await createKnowledgeBase(
-    {
-      name: newBaseName.value.trim() || '未命名知识库',
-      embeddingModel: newBaseEmbed.value.trim() || 'bge-m3:latest',
-    },
-    silentAxiosConfig
-  )
-  if (data.code !== 0) throw new Error(data.message)
-  await loadBases()
-  if (data.data) selectedBaseId.value = data.data.id
-  ingestMsg.value = '知识库已创建'
+  try {
+    const { data } = await createKnowledgeBase(
+      {
+        name: newBaseName.value.trim() || '未命名知识库',
+        embeddingModel: newBaseEmbed.value.trim() || 'bge-m3:latest',
+      },
+      silentAxiosConfig
+    )
+    if (data.code !== 0) throw new Error(data.message)
+    await loadBases()
+    if (data.data) selectedBaseId.value = data.data.id
+    ingestMsg.value = '知识库已创建'
+  } catch (e) {
+    ingestMsg.value = getErrorMessage(e)
+  }
 }
 
 async function loadFiles() {
@@ -98,6 +104,11 @@ async function onFileChange(e: Event) {
   const list = input.files
   input.value = ''
   if (!list?.length || selectedBaseId.value == null) return
+  const paramErr = validateIngestChunkParams(chunkSize.value, chunkOverlap.value)
+  if (paramErr) {
+    ElMessage.error(paramErr)
+    return
+  }
   uploading.value = true
   ingestMsg.value = ''
   const total = list.length

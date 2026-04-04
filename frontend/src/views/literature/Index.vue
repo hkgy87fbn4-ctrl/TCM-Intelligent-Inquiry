@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import { silentAxiosConfig } from '@/api/core/client'
 import { getErrorMessage } from '@/api/core/errors'
+import { validateIngestChunkParams } from '@/utils/chunkUploadParams'
 import {
   deleteLiteratureCollection,
   deleteLiteratureDocument,
@@ -62,6 +64,11 @@ async function onFileChange(e: Event) {
   const list = input.files
   input.value = ''
   if (!list?.length) return
+  const paramErr = validateIngestChunkParams(chunkSize.value, chunkOverlap.value)
+  if (paramErr) {
+    ElMessage.error(paramErr)
+    return
+  }
   uploading.value = true
   msg.value = ''
   const total = list.length
@@ -274,12 +281,17 @@ onMounted(async () => {
       >
         {{ msg }}
       </p>
-      <p
+      <div
         v-if="loadingFiles"
-        class="ds-muted"
+        class="lit-skeleton"
+        role="status"
+        aria-busy="true"
+        aria-label="正在加载文献列表"
       >
-        加载列表…
-      </p>
+        <div class="lit-skeleton__row" />
+        <div class="lit-skeleton__row lit-skeleton__row--short" />
+        <div class="lit-skeleton__row" />
+      </div>
       <div
         v-else
         class="lit-table-wrap"
@@ -426,6 +438,35 @@ onMounted(async () => {
 }
 .lit-file-btn {
   flex-shrink: 0;
+}
+.lit-skeleton {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.lit-skeleton__row {
+  height: 2.25rem;
+  border-radius: 0.5rem;
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-elevated) 0%,
+    var(--color-border) 50%,
+    var(--color-surface-elevated) 100%
+  );
+  background-size: 200% 100%;
+  animation: lit-shimmer 1.2s ease-in-out infinite;
+}
+.lit-skeleton__row--short {
+  width: 70%;
+}
+@keyframes lit-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }
 .lit-table-wrap {
   margin-top: 0.75rem;

@@ -596,46 +596,57 @@ function canSend() {
                   模型、RAG 参数与上下文
                 </summary>
                 <div class="consult-adv__body">
-                  <div class="ds-row consult-controls consult-controls--wrap">
-                    <label class="ds-field">
-                      Temperature
-                      <input
-                        v-model.number="temperature"
-                        class="ds-input ds-input--narrow"
-                        type="number"
-                        inputmode="decimal"
-                        min="0"
-                        max="2"
-                        step="0.1"
+                  <p class="consult-slider-intro ds-hint">
+                    以下三项支持滑条与数值框联动（企业级 SaaS 常见交互），便于快速扫参。
+                  </p>
+                  <div class="consult-slider-grid">
+                    <div class="consult-slider-item">
+                      <div class="consult-slider-item__label">
+                        Temperature
+                      </div>
+                      <el-slider
+                        v-model="temperature"
+                        :min="0"
+                        :max="2"
+                        :step="0.1"
+                        :show-input="true"
                         :disabled="loading"
-                      >
-                    </label>
-                    <label class="ds-field">
-                      Top-P
-                      <input
-                        v-model.number="topP"
-                        class="ds-input ds-input--narrow"
-                        type="number"
-                        inputmode="decimal"
-                        min="0.000001"
-                        max="1"
-                        step="0.05"
+                        input-size="small"
+                        class="consult-el-slider"
+                      />
+                    </div>
+                    <div class="consult-slider-item">
+                      <div class="consult-slider-item__label">
+                        Top-P
+                      </div>
+                      <el-slider
+                        v-model="topP"
+                        :min="0.05"
+                        :max="1"
+                        :step="0.05"
+                        :show-input="true"
                         :disabled="loading"
-                      >
-                    </label>
-                    <label class="ds-field">
-                      历史轮数上限
-                      <input
-                        v-model.number="maxHistoryTurns"
-                        class="ds-input ds-input--narrow"
-                        type="number"
-                        inputmode="numeric"
-                        min="1"
-                        max="50"
-                        step="1"
+                        input-size="small"
+                        class="consult-el-slider"
+                      />
+                    </div>
+                    <div class="consult-slider-item">
+                      <div class="consult-slider-item__label">
+                        历史轮数上限
+                      </div>
+                      <el-slider
+                        v-model="maxHistoryTurns"
+                        :min="1"
+                        :max="50"
+                        :step="1"
+                        :show-input="true"
                         :disabled="loading"
-                      >
-                    </label>
+                        input-size="small"
+                        class="consult-el-slider"
+                      />
+                    </div>
+                  </div>
+                  <div class="ds-row consult-controls consult-controls--wrap consult-controls--rag">
                     <template v-if="mode === 'knowledge' || (mode === 'vision' && visionUseKnowledgeBase)">
                       <label class="ds-field">
                         RAG topK
@@ -1176,6 +1187,34 @@ function canSend() {
   margin-top: 0.35rem;
   padding-top: 0.4rem;
   border-top: 1px dashed var(--color-border);
+}
+
+.consult-slider-intro {
+  margin: 0 0 0.65rem;
+  max-width: min(100%, 36rem);
+}
+
+.consult-slider-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-bottom: 0.75rem;
+  max-width: min(100%, 26rem);
+}
+
+.consult-slider-item__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.3rem;
+}
+
+.consult-el-slider {
+  width: 100%;
+}
+
+.consult-controls--rag {
+  margin-top: 0.15rem;
 }
 
 .consult-adv__select {
