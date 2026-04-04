@@ -567,7 +567,7 @@ function canSend() {
                   class="omni-bar__mount omni-bar__mount--wrap"
                 >
                   <p class="omni-vision-note">
-                    非流式调用；可在下方附加图片。默认 System / 视觉模型在「智能体」配置页修改。
+                    非流式调用；附图将以 Base64 随 JSON 提交，走 ReAct 工具链并触发药材图识别工具（多图时仅首张进入工具）。System / 视觉模型名在「智能体」配置页修改。
                   </p>
                   <label
                     v-if="knowledgeBases.length > 0"

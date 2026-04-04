@@ -1,6 +1,8 @@
 package com.tcm.inquiry.modules.agent;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -9,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -76,5 +79,26 @@ class AgentControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.assistant").value("ok"))
                 .andExpect(jsonPath("$.data.mode").value("chat"));
+    }
+
+    @Test
+    void runJsonDeserializesHerbImageFields() throws Exception {
+        org.mockito.Mockito.when(agentService.runJson(any()))
+                .thenReturn(new AgentRunResponse("done", List.of(), "react+tools"));
+
+        mockMvc.perform(
+                        post("/api/v1/agent/run")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        "{\"task\":\"识别药材\",\"herbImageBase64\":\"QUJD\",\"herbImageMimeType\":\"image/png\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.assistant").value("done"));
+
+        ArgumentCaptor<AgentRunRequest> cap = ArgumentCaptor.forClass(AgentRunRequest.class);
+        verify(agentService).runJson(cap.capture());
+        AgentRunRequest req = cap.getValue();
+        assertEquals("识别药材", req.task());
+        assertEquals("QUJD", req.herbImageBase64());
+        assertEquals("image/png", req.herbImageMimeType());
     }
 }

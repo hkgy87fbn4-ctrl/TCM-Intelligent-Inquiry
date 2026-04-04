@@ -9,11 +9,10 @@ import {
   listConsultationMessages,
   listConsultationSessions,
 } from '@/api/modules/consultation'
-import { postAgentRunJson, postAgentRunMultipart } from '@/api/modules/agent'
-import type { AgentRunResponse } from '@/types/agent'
-import type { ApiResult } from '@/types/api'
+import { postAgentRunJson } from '@/api/modules/agent'
 import type { ChatSessionInfo } from '@/types/consultation'
 import type { OmniSendPayload } from '@/types/omniChat'
+import { encodeImageFileToHerbPayload } from '@/utils/herbImagePayload'
 
 export type ChatTurn = { role: 'user' | 'assistant'; content: string }
 
@@ -279,8 +278,10 @@ export function useChat() {
   }
 
   /**
-   * 视觉智能体：POST /v1/agent/run（多模态或纯文本），非 SSE；回复写入本会话消息列表。
-   * 多张图片会以同名 `image` 字段多次提交，由后端一并送入视觉模型。
+   * 视觉智能体：POST /v1/agent/run（JSON），非 SSE；回复写入本会话消息列表。
+   * 纯文本：仅 task（及可选知识库 RAG 参数）。
+   * 附图：将首张图编码为 herbImageBase64 随 JSON 提交，后端注入 ToolContext，
+   * 走文本模型 + ReAct 工具链并触发 herb_image_recognition_tool（多图时仅首图进入工具，任务文案中会注明张数）。
    */
   async function sendVisionAgent(
     userText: string,
@@ -312,41 +313,28 @@ export function useChat() {
     loading.value = true
 
     try {
-      let data: ApiResult<AgentRunResponse>
-      if (images.length > 0) {
-        const fd = new FormData()
-        fd.append('task', text)
-        for (const im of images) {
-          fd.append('image', im)
-        }
-        const kb = opts?.knowledgeBaseId
-        if (kb != null) {
-          fd.append('knowledgeBaseId', String(kb))
-          if (opts?.ragTopK != null) {
-            fd.append('ragTopK', String(opts.ragTopK))
-          }
-          if (opts?.ragSimilarityThreshold != null) {
-            fd.append(
-              'ragSimilarityThreshold',
-              String(opts.ragSimilarityThreshold)
-            )
-          }
-        }
-        const res = await postAgentRunMultipart(fd, silentAxiosConfig)
-        data = res.data
-      } else {
-        const body: Record<string, unknown> = { task: text }
-        const kb = opts?.knowledgeBaseId
-        if (kb != null) {
-          body.knowledgeBaseId = kb
-          if (opts?.ragTopK != null) body.ragTopK = opts.ragTopK
-          if (opts?.ragSimilarityThreshold != null) {
-            body.ragSimilarityThreshold = opts.ragSimilarityThreshold
-          }
-        }
-        const res = await postAgentRunJson(body, silentAxiosConfig)
-        data = res.data
+      const body: Record<string, unknown> = {
+        task:
+          images.length > 1
+            ? `${text}\n\n（用户共上传 ${images.length} 张图；药材识别工具仅分析首张：${images[0]!.name}）`
+            : text,
       }
+      if (images.length > 0) {
+        const { herbImageBase64, herbImageMimeType } =
+          await encodeImageFileToHerbPayload(images[0]!)
+        body.herbImageBase64 = herbImageBase64
+        body.herbImageMimeType = herbImageMimeType
+      }
+      const kb = opts?.knowledgeBaseId
+      if (kb != null) {
+        body.knowledgeBaseId = kb
+        if (opts?.ragTopK != null) body.ragTopK = opts.ragTopK
+        if (opts?.ragSimilarityThreshold != null) {
+          body.ragSimilarityThreshold = opts.ragSimilarityThreshold
+        }
+      }
+      const res = await postAgentRunJson(body, silentAxiosConfig)
+      const data = res.data
       if (data.code !== 0) throw new Error(data.message || '智能体调用失败')
       const answer = data.data?.assistant ?? ''
       const sources = data.data?.knowledgeSources ?? []

@@ -89,7 +89,7 @@ public class AgentService {
                                 .filter(Objects::nonNull)
                                 .filter(f -> !f.isEmpty())
                                 .toList();
-        // 多模态直连接视觉模型；附图场景下 herb 工具由模型侧自行规划，故不在此注入 Base64 ToolContext
+        // 多模态直连视觉模型，不注入 herb Base64 ToolContext；若需 ReAct + herb_image 工具，请走 JSON 的 herbImageBase64（问诊前端已统一该路径）。
         return run(task.trim(), knowledgeBaseId, ragTopK, ragSimilarityThreshold, images, null, null);
     }
 

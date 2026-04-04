@@ -4,7 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 
 /**
  * JSON：{@code POST /api/v1/agent/run}（{@code Content-Type: application/json}）。
- * 带图请用 {@code multipart/form-data} 同路径 {@code /run}。
+ * 问诊前端附图推荐本类型中的 {@code herbImageBase64}，以启用 ReAct + 药材识别工具；
+ * {@code multipart/form-data} 仍保留供直连视觉模型、或其它客户端使用。
  */
 public record AgentRunRequest(
         @NotBlank String task,
