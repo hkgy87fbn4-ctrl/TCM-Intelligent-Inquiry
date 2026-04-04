@@ -10,6 +10,7 @@ import '@/styles/design-tokens.css'
 import App from './App.vue'
 import router from './router'
 import { useThemeStore } from '@/store/themeStore'
+import { installLiteraturePagehideBeacon } from '@/utils/literatureBeacon'
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -34,3 +35,5 @@ app.config.errorHandler = (err, _instance, info) => {
 app.use(ElementPlus, { locale: zhCn, size: 'default' })
 app.use(router)
 app.mount('#app')
+/** 关闭/刷新标签页时尝试释放文献临时库（sendBeacon），与文献页路由守卫配合 */
+installLiteraturePagehideBeacon()

@@ -3,6 +3,8 @@ package com.tcm.inquiry.modules.literature;
 import java.io.IOException;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -31,6 +33,8 @@ import jakarta.validation.Valid;
 @RestController
 @RequestMapping("/api/v1/literature")
 public class LiteratureController {
+
+    private static final Logger log = LoggerFactory.getLogger(LiteratureController.class);
 
     private final LiteratureIngestionService literatureIngestionService;
     private final LiteratureRagService literatureRagService;
@@ -91,6 +95,27 @@ public class LiteratureController {
     @DeleteMapping("/collections/{collectionId}")
     public ResponseEntity<ApiResult<Void>> deleteCollection(@PathVariable("collectionId") String collectionId) {
         literatureManageService.deleteCollection(collectionId);
+        return ResponseEntity.ok(R.ok(null));
+    }
+
+    /**
+     * 供浏览器 {@code sendBeacon} 在关闭/刷新标签页时调用：使用 POST 以兼容各浏览器对 Beacon + DELETE 的差异。
+     * 始终返回 200 + code=0，避免客户端重试；业务上「库不存在」视为幂等成功。
+     */
+    @PostMapping("/collections/{collectionId}/release-beacon")
+    public ResponseEntity<ApiResult<Void>> releaseCollectionBeacon(@PathVariable("collectionId") String collectionId) {
+        String id = collectionId == null ? "" : collectionId.trim();
+        if (id.isEmpty()) {
+            return ResponseEntity.ok(R.ok(null));
+        }
+        try {
+            literatureManageService.deleteCollection(id);
+            log.debug("文献临时库已通过 Beacon 释放 collectionId={}", id);
+        } catch (IllegalArgumentException ex) {
+            log.debug("文献 Beacon 释放：collection 不存在或已删除 collectionId={}", id);
+        } catch (Exception ex) {
+            log.warn("文献 Beacon 释放异常 collectionId={}", id, ex);
+        }
         return ResponseEntity.ok(R.ok(null));
     }
 

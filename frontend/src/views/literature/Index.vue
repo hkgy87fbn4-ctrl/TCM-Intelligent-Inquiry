@@ -18,6 +18,10 @@ import {
   isHealthStatusErr,
   isHealthStatusOk,
 } from '@/utils/formatHealthStatus'
+import {
+  LITERATURE_TAB_COLLECTION_SESSION_KEY,
+  setLiteratureTabCollectionId,
+} from '@/utils/literatureBeacon'
 
 const health = ref('加载中…')
 const collectionId = ref<string | null>(null)
@@ -58,6 +62,19 @@ async function loadFiles() {
 
 watch(collectionId, () => {
   void loadFiles()
+})
+
+/**
+ * 与 sessionStorage 同步：非空则记录到本标签页（供 pagehide + sendBeacon 释放）；
+ * 从「有值」变为空时清除（显式删库 / 新建空库 / 路由守卫删库后）。
+ * 初次进入页面且 ref 为空时，不覆盖 storage，以便保留「保留并离开」后的 ID 供恢复或关页释放。
+ */
+watch(collectionId, (v, oldV) => {
+  if (v) {
+    setLiteratureTabCollectionId(v)
+  } else if (oldV != null) {
+    setLiteratureTabCollectionId(null)
+  }
 })
 
 async function onFileChange(e: Event) {
@@ -165,6 +182,17 @@ const collectionExpiresLabel = computed(() => {
 })
 
 onMounted(async () => {
+  if (!collectionId.value) {
+    try {
+      const raw = sessionStorage.getItem(LITERATURE_TAB_COLLECTION_SESSION_KEY)
+      const trimmed = raw?.trim()
+      if (trimmed) {
+        collectionId.value = trimmed
+      }
+    } catch {
+      /* ignore */
+    }
+  }
   await refreshHealth()
 })
 
@@ -223,7 +251,7 @@ onBeforeRouteLeave(async (_to, _from, next) => {
     </h2>
     <p class="ds-lead lit-lead">
       上传与解析文献向量（进入 Redis Stack，与知识库 metadata 隔离）；服务端按配置对临时库做 TTL
-      滑动续期与定时清理。问诊请选择「文献库」模式并指定本页临时库 ID。若当前已建临时库，切换到其它路由时会询问是否立即删除服务端整库（亦可保留至 TTL）。
+      滑动续期与定时清理。问诊请选择「文献库」模式并指定本页临时库 ID。若当前已建临时库，切换到其它路由时会询问是否立即删除服务端整库（亦可保留至 TTL）；关闭或刷新本标签页时会尽力通过浏览器 Beacon 通知服务端释放（与 TTL 互补）。
     </p>
     <p
       class="ds-status lit-health"

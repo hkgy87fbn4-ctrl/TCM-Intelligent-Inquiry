@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.Mockito.verify;
 
 import java.time.Instant;
 import java.util.List;
@@ -85,5 +86,23 @@ class LiteratureControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0));
         org.mockito.Mockito.verify(literatureManageService).deleteCollection("col-z");
+    }
+
+    @Test
+    void releaseBeaconCallsDelete() throws Exception {
+        mockMvc.perform(post("/api/v1/literature/collections/col-b/release-beacon"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
+        verify(literatureManageService).deleteCollection("col-b");
+    }
+
+    @Test
+    void releaseBeaconStillOkWhenDeleteThrows() throws Exception {
+        org.mockito.Mockito.doThrow(new IllegalArgumentException("not found"))
+                .when(literatureManageService)
+                .deleteCollection("ghost");
+        mockMvc.perform(post("/api/v1/literature/collections/ghost/release-beacon"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0));
     }
 }
